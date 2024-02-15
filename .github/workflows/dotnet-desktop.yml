@@ -70,3 +70,11 @@ jobs:
     - name: Build everything and verify
       run: |
         ./dist.release.bat
+
+    - name: Upload MSI files
+      uses: actions/upload-artifact@v4
+      with:
+        name: msi-files
+        path: |
+          PHPManagerForIIS_x86.msi
+          PHPManagerForIIS_x64.msi

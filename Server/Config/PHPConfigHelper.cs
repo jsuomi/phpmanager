@@ -1663,6 +1663,7 @@ namespace Web.Management.PHP.Config
 
         private void ValidateLifecycle(PHPConfigInfo info)
         {
+            // Check https://www.php.net/supported-versions.php for the supported PHP versions and dates
             var knownPhpVersions = new Dictionary<string, PhpVersion>
             {
                 { "4.4", new PhpVersion("4.4", new DateTime(2008, 8, 7)) },
@@ -1681,6 +1682,7 @@ namespace Web.Management.PHP.Config
                 { "8.0", new PhpVersion("8.0", new DateTime(2023, 11, 26), new Version(14, 21)) },
                 { "8.1", new PhpVersion("8.1", new DateTime(2024, 11, 25), new Version(14, 21)) },
                 { "8.2", new PhpVersion("8.2", new DateTime(2025, 12, 8), new Version(14, 21)) },
+                { "8.3", new PhpVersion("8.3", new DateTime(2026, 11, 23), new Version(14, 21)) },
             };
 
             var detected = new Version(info.Version);

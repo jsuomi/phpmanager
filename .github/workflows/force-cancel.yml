@@ -17,6 +17,7 @@ jobs:
         steps:
             - name: Force cancel
               env:
+                  GH_TOKEN: ${{ github.token }}
                   RUN_ID: ${{ inputs.run_id }}
               run: |
                   case "$RUN_ID" in

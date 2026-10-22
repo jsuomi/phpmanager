@@ -39,42 +39,34 @@
 name: .NET Framework Desktop
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-  workflow_dispatch:
+    # push:
+    #     branches: ["master"]
+    # pull_request:
+    #     branches: ["master"]
+    workflow_dispatch:
 
 jobs:
+    build:
+        runs-on: windows-2022
 
-  build:
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-    runs-on: windows-latest  # For a list of available runner types, refer to
-                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+            - name: Install IIS Manager
+              run: |
+                  Install-WindowsFeature -name Web-Server -IncludeManagementTools
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+            - name: Build everything and verify
+              run: |
+                  ./dist.release.bat
 
-    - name: Install IIS Manager
-      run: |
-        Install-WindowsFeature -name Web-Server -IncludeManagementTools
-
-    - name: Set up Visual Studio shell
-      uses: egor-tensin/vs-shell@v2
-      with:
-        arch: x64
-        
-    - name: Build everything and verify
-      run: |
-        ./dist.release.bat
-
-    - name: Upload MSI files
-      uses: actions/upload-artifact@v4
-      with:
-        name: msi-files
-        path: |
-          PHPManagerForIIS_x86.msi
-          PHPManagerForIIS_x64.msi
+            - name: Upload MSI files
+              uses: actions/upload-artifact@v4
+              with:
+                  name: msi-files
+                  path: |
+                      PHPManagerForIIS_x86.msi
+                      PHPManagerForIIS_x64.msi

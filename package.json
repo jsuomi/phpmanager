@@ -1,6 +1,7 @@
 {
     "scripts": {
-        "check:actions": "github-actionlint .github/workflows/*"
+        "check:actions": "github-actionlint .github/workflows/*",
+        "check:php": "node .github/scripts/check-php-versions.mjs"
     },
     "devDependencies": {
         "github-actionlint": "^1.7.12"

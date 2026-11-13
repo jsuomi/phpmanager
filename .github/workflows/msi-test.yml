@@ -1,0 +1,201 @@
+name: Test MSI
+
+# Installs the x64 MSI from a Build MSI run on a clean Windows runner. For each
+# PHP branch that windows.php.net publishes, it registers that PHP with
+# New-PHPVersion, serves a page through IIS, then uninstalls the MSI.
+# The x86 MSI is not tested: it refuses to install on 64-bit Windows.
+run-name: Test MSI from ${{ github.event.workflow_run.display_title || format('run {0}', inputs.run_id) }}
+
+on:
+    workflow_run:
+        workflows: ["Build MSI"]
+        types: [completed]
+    workflow_dispatch:
+        inputs:
+            run_id:
+                description: "Build MSI run id to test. The number at the end of the Actions run URL."
+                required: true
+                type: string
+
+permissions:
+    contents: read
+    actions: read
+
+jobs:
+    prepare:
+        if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-24.04
+        outputs:
+            run_id: ${{ steps.run.outputs.run_id }}
+            branches: ${{ steps.php.outputs.branches }}
+        steps:
+            - name: Resolve run
+              id: run
+              env:
+                  RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+              run: |
+                  case "$RUN_ID" in
+                      ''|*[!0-9]*)
+                          echo "Run id must be a number."
+                          exit 1
+                          ;;
+                  esac
+                  echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+            - name: List PHP branches
+              id: php
+              run: |
+                  branches=$(curl -fsSL --retry 3 https://downloads.php.net/~windows/releases/releases.json \
+                      | jq -c '[keys[] | select(test("^[0-9]+\\.[0-9]+$"))]')
+                  if [ "$branches" = "[]" ] || [ -z "$branches" ]; then
+                      echo "No PHP branches found in releases.json."
+                      exit 1
+                  fi
+                  echo "Testing PHP $branches"
+                  echo "branches=$branches" >> "$GITHUB_OUTPUT"
+
+    test:
+        needs: prepare
+        name: PHP ${{ matrix.php }}
+        runs-on: windows-2022
+        strategy:
+            fail-fast: false
+            matrix:
+                php: ${{ fromJSON(needs.prepare.outputs.branches) }}
+        defaults:
+            run:
+                # Windows PowerShell 5.1: the cmdlets ship as a snap-in, which pwsh cannot load.
+                shell: powershell
+        env:
+            PHP_BRANCH: ${{ matrix.php }}
+            PHP_DIR: C:\php
+        steps:
+            - name: Install IIS with CGI
+              run: |
+                  $result = Install-WindowsFeature -Name Web-Server, Web-CGI -IncludeManagementTools
+                  if (-not $result.Success) { throw "Install-WindowsFeature failed: $($result.ExitCode)" }
+
+            - name: Download MSI
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: PHPManagerForIIS-*
+                  merge-multiple: true
+                  path: msi
+                  run-id: ${{ needs.prepare.outputs.run_id }}
+                  github-token: ${{ github.token }}
+
+            - name: Check SHA256SUMS
+              run: |
+                  $msi = Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1
+                  if (-not $msi) { throw 'No x64 MSI in the artifact.' }
+                  $line = Get-Content msi/SHA256SUMS.txt | Where-Object { $_ -match "  $([regex]::Escape($msi.Name))$" }
+                  if (-not $line) { throw "$($msi.Name) is not in SHA256SUMS.txt." }
+                  $hash = (Get-FileHash $msi.FullName -Algorithm SHA256).Hash
+                  if ($hash -ne $line.Split(' ')[0]) { throw "$($msi.Name) does not match SHA256SUMS.txt." }
+                  Write-Host "$($msi.Name) matches SHA256SUMS.txt."
+
+            - name: Install MSI
+              run: |
+                  $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
+                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\install.log`""
+                  if ($p.ExitCode -notin 0, 3010) { throw "msiexec /i exited with $($p.ExitCode). See install.log." }
+
+            - name: Check install
+              run: |
+                  foreach ($name in 'Web.Management.PHP', 'Web.Management.PHP.Client') {
+                      if (-not (Test-Path "$env:windir\Microsoft.NET\assembly\GAC_*\$name")) { throw "$name is not in the GAC." }
+                  }
+                  $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
+                  if (-not $admin.SelectSingleNode("//moduleProviders/add[@name='PHP']")) { throw 'The PHP module provider is not in administration.config.' }
+                  Add-PSSnapin PHPManagerSnapin
+                  Get-Command -PSSnapin PHPManagerSnapin | Format-Table -AutoSize
+
+            - name: Download PHP
+              id: php
+              run: |
+                  $ProgressPreference = 'SilentlyContinue'
+                  $releases = Invoke-RestMethod https://downloads.php.net/~windows/releases/releases.json
+                  $release = $releases.$env:PHP_BRANCH
+                  $build = $release.PSObject.Properties | Where-Object { $_.Name -match '^nts-v[cs]\d+-x64$' } | Select-Object -First 1
+                  if (-not $build) { throw "No NTS x64 build of PHP $env:PHP_BRANCH in releases.json." }
+                  $zip = $build.Value.zip
+                  Write-Host "Downloading $($zip.path)"
+                  Invoke-WebRequest "https://downloads.php.net/~windows/releases/$($zip.path)" -OutFile php.zip -UseBasicParsing
+                  if ((Get-FileHash php.zip -Algorithm SHA256).Hash -ne $zip.sha256) { throw "$($zip.path) does not match its SHA-256 in releases.json." }
+                  Expand-Archive php.zip -DestinationPath $env:PHP_DIR
+                  # Windows rebuilds such as 8.2.35-1 report 8.2.35 as PHP_VERSION.
+                  "version=$($release.version -replace '-\d+$', '')" >> $env:GITHUB_OUTPUT
+
+            - name: Register PHP
+              env:
+                  PHP_VERSION: ${{ steps.php.outputs.version }}
+              run: |
+                  Add-PSSnapin PHPManagerSnapin
+                  $exe = Join-Path $env:PHP_DIR 'php-cgi.exe'
+                  New-PHPVersion -ScriptProcessor $exe
+                  $config = Get-PHPConfiguration
+                  $config | Format-List
+                  Get-PHPExtension -Status Enabled | Format-Table -AutoSize
+
+                  if ($config.ScriptProcessor -ne $exe) { throw "Active PHP is $($config.ScriptProcessor), not $exe." }
+                  # Version is php-cgi.exe's ProductVersion, which may end in .0.
+                  if ($config.Version -notmatch "^$([regex]::Escape($env:PHP_VERSION))(\.0)?$") { throw "Active PHP version is $($config.Version), not $env:PHP_VERSION." }
+                  $ini = Join-Path $env:PHP_DIR 'php.ini'
+                  if (-not (Test-Path $ini)) { throw 'php.ini was not created from php.ini-production.' }
+                  if ($config.PHPIniFilePath -ne $ini) { throw "php.ini in use is $($config.PHPIniFilePath), not $ini." }
+
+            - name: Serve a page
+              env:
+                  PHP_VERSION: ${{ steps.php.outputs.version }}
+              run: |
+                  $page = @'
+                  <?php
+                  header('Content-Type: application/json');
+                  $names = array('curl', 'gettext', 'mbstring', 'mysqli', 'openssl', 'soap', 'gd', 'xmlrpc');
+                  $loaded = array();
+                  foreach ($names as $name) { $loaded[$name] = extension_loaded($name); }
+                  echo json_encode(array('version' => PHP_VERSION, 'sapi' => PHP_SAPI, 'ini' => php_ini_loaded_file(), 'extensions' => $loaded));
+                  '@
+                  Set-Content -Path C:\inetpub\wwwroot\smoke.php -Value $page -Encoding ASCII
+
+                  try {
+                      $response = Invoke-WebRequest http://localhost/smoke.php -UseBasicParsing
+                  } catch {
+                      throw "Request failed: $($_.Exception.Message) $($_.ErrorDetails.Message)"
+                  }
+                  Write-Host $response.Content
+                  $data = $response.Content | ConvertFrom-Json
+
+                  if ($data.sapi -ne 'cgi-fcgi') { throw "PHP ran as $($data.sapi), not cgi-fcgi." }
+                  if ($data.version -ne $env:PHP_VERSION) { throw "PHP $($data.version) answered, not $env:PHP_VERSION." }
+                  if ($data.ini -ne (Join-Path $env:PHP_DIR 'php.ini')) { throw "PHP loaded $($data.ini), not php.ini in $env:PHP_DIR." }
+
+                  # The extensions MakeRecommendedPHPIniChanges enables. xmlrpc is only in PHP 7.
+                  $expected = 'curl', 'gettext', 'mbstring', 'mysqli', 'openssl', 'soap', 'gd'
+                  if ([version]$env:PHP_VERSION -lt [version]'8.0') { $expected += 'xmlrpc' }
+                  $missing = $expected | Where-Object { -not $data.extensions.$_ }
+                  if ($missing) { throw "Recommended extensions not loaded: $($missing -join ', ')" }
+
+            - name: Uninstall MSI
+              run: |
+                  $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
+                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/x', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\uninstall.log`""
+                  if ($p.ExitCode -notin 0, 3010) { throw "msiexec /x exited with $($p.ExitCode). See uninstall.log." }
+
+                  foreach ($name in 'Web.Management.PHP', 'Web.Management.PHP.Client') {
+                      if (Test-Path "$env:windir\Microsoft.NET\assembly\GAC_*\$name\*\*.dll") { throw "$name is still in the GAC." }
+                  }
+                  $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
+                  if ($admin.SelectSingleNode("//moduleProviders/add[@name='PHP']")) { throw 'The PHP module provider is still in administration.config.' }
+                  if (Get-PSSnapin -Registered -Name PHPManagerSnapin -ErrorAction SilentlyContinue) { throw 'PHPManagerSnapin is still registered.' }
+
+            - name: Upload logs
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: msi-test-logs-php${{ matrix.php }}
+                  if-no-files-found: ignore
+                  retention-days: 7
+                  path: |
+                      install.log
+                      uninstall.log

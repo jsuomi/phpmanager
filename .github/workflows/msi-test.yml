@@ -3,7 +3,9 @@ name: Test MSI
 # Installs the x64 MSI from a Build MSI run on a clean Windows runner. For each
 # PHP branch that php.net still supports and windows.php.net has a build of,
 # it registers that PHP with New-PHPVersion, serves a page through IIS, then
-# uninstalls the MSI.
+# uninstalls the MSI. One more job does the same with the newest PHP as an
+# upgrade: it installs the newest published release older than the build,
+# registers PHP with it, then installs the build over it.
 # The x86 MSI is not tested: it refuses to install on 64-bit Windows.
 run-name: Test MSI from ${{ github.event.workflow_run.display_title || format('run {0}', inputs.run_id) }}
 
@@ -29,6 +31,7 @@ jobs:
         outputs:
             run_id: ${{ steps.run.outputs.run_id }}
             branches: ${{ steps.php.outputs.branches }}
+            latest: ${{ steps.php.outputs.latest }}
         steps:
             - name: Resolve run
               id: run
@@ -52,7 +55,7 @@ jobs:
                           '[.[] | select((.security_support_end // "")[0:10] >= $today) | .branch]')
                   windows=$(curl -fsSL --retry 3 https://downloads.php.net/~windows/releases/releases.json \
                       | jq -c '[keys[] | select(test("^[0-9]+\\.[0-9]+$"))]')
-                  branches=$(jq -nc --argjson s "$supported" --argjson w "$windows" '[$s[] | select(IN($w[]))] | sort')
+                  branches=$(jq -nc --argjson s "$supported" --argjson w "$windows" '[$s[] | select(IN($w[]))] | sort_by(split(".") | map(tonumber))')
                   missing=$(jq -nc --argjson s "$supported" --argjson w "$windows" '[$s[] | select(IN($w[]) | not)]')
                   if [ "$missing" != "[]" ]; then
                       echo "::warning::Supported PHP with no Windows build to test: $missing"
@@ -63,15 +66,21 @@ jobs:
                   fi
                   echo "Testing PHP $branches"
                   echo "branches=$branches" >> "$GITHUB_OUTPUT"
+                  echo "latest=$(jq -nr --argjson b "$branches" '$b[-1]')" >> "$GITHUB_OUTPUT"
 
     test:
         needs: prepare
-        name: PHP ${{ matrix.php }}
+        name: PHP ${{ matrix.php }}${{ matrix.upgrade && ' upgrade' || '' }}
         runs-on: windows-2022
         strategy:
             fail-fast: false
             matrix:
                 php: ${{ fromJSON(needs.prepare.outputs.branches) }}
+                upgrade: [false]
+                # upgrade: true does not match [false], so this adds a job instead of changing one.
+                include:
+                    - php: ${{ needs.prepare.outputs.latest }}
+                      upgrade: true
         defaults:
             run:
                 # Windows PowerShell 5.1: the cmdlets ship as a snap-in, which pwsh cannot load.
@@ -95,6 +104,7 @@ jobs:
                   github-token: ${{ github.token }}
 
             - name: Check SHA256SUMS
+              id: msi
               run: |
                   $msi = Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1
                   if (-not $msi) { throw 'No x64 MSI in the artifact.' }
@@ -103,22 +113,8 @@ jobs:
                   $hash = (Get-FileHash $msi.FullName -Algorithm SHA256).Hash
                   if ($hash -ne $line.Split(' ')[0]) { throw "$($msi.Name) does not match SHA256SUMS.txt." }
                   Write-Host "$($msi.Name) matches SHA256SUMS.txt."
-
-            - name: Install MSI
-              run: |
-                  $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
-                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\install.log`""
-                  if ($p.ExitCode -notin 0, 3010) { throw "msiexec /i exited with $($p.ExitCode). See install.log." }
-
-            - name: Check install
-              run: |
-                  foreach ($name in 'Web.Management.PHP', 'Web.Management.PHP.Client') {
-                      if (-not (Test-Path "$env:windir\Microsoft.NET\assembly\GAC_*\$name")) { throw "$name is not in the GAC." }
-                  }
-                  $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
-                  if (-not $admin.SelectSingleNode("//moduleProviders/add[@name='PHP']")) { throw 'The PHP module provider is not in administration.config.' }
-                  Add-PSSnapin PHPManagerSnapin
-                  Get-Command -PSSnapin PHPManagerSnapin | Format-Table -AutoSize
+                  # PHPManagerForIIS-2.16.0-x64.msi gives 2.16.0.
+                  "version=$($msi.Name -replace '^PHPManagerForIIS-(.+)-x64\.msi$', '$1')" >> $env:GITHUB_OUTPUT
 
             - name: Download PHP
               id: php
@@ -136,13 +132,98 @@ jobs:
                   # Windows rebuilds such as 8.2.35-1 report 8.2.35 as PHP_VERSION.
                   "version=$($release.version -replace '-\d+$', '')" >> $env:GITHUB_OUTPUT
 
+            - name: Install previous release
+              id: previous
+              if: matrix.upgrade
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  NEW_VERSION: ${{ steps.msi.outputs.version }}
+              run: |
+                  $new = [version]$env:NEW_VERSION
+                  # Assign first: PowerShell 5.1 pipes a JSON array on as one object.
+                  $releases = (gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName) -join "`n" | ConvertFrom-Json
+                  if ($LASTEXITCODE -ne 0) { throw 'gh release list failed.' }
+                  $previous = $releases |
+                      Where-Object { $_.tagName -match '^v\d+\.\d+\.\d+(\.\d+)?$' -and [version]$_.tagName.Substring(1) -lt $new } |
+                      Sort-Object { [version]$_.tagName.Substring(1) } -Descending |
+                      Select-Object -First 1
+                  if (-not $previous) {
+                      Write-Host "::warning::No published release is older than $env:NEW_VERSION, so the upgrade job tests a fresh install instead."
+                      exit 0
+                  }
+                  $tag = $previous.tagName
+                  Write-Host "Upgrading from $tag to $env:NEW_VERSION."
+
+                  gh release download $tag --pattern '*x64.msi' --pattern 'SHA256SUMS.txt' --dir previous
+                  if ($LASTEXITCODE -ne 0) { throw "Could not download the x64 MSI of $tag." }
+                  $msi = Get-ChildItem previous -Filter '*x64.msi' | Select-Object -First 1
+                  if (Test-Path previous/SHA256SUMS.txt) {
+                      $line = Get-Content previous/SHA256SUMS.txt | Where-Object { $_ -match "  $([regex]::Escape($msi.Name))$" }
+                      if (-not $line -or (Get-FileHash $msi.FullName -Algorithm SHA256).Hash -ne $line.Split(' ')[0]) { throw "$($msi.Name) does not match the SHA256SUMS.txt of $tag." }
+                  }
+
+                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', "`"$($msi.FullName)`"", '/qn', '/norestart', '/l*v', "`"$PWD\previous.log`""
+                  if ($p.ExitCode -notin 0, 3010) { throw "msiexec /i of $tag exited with $($p.ExitCode). See previous.log." }
+
+                  Add-PSSnapin PHPManagerSnapin
+                  New-PHPVersion -ScriptProcessor (Join-Path $env:PHP_DIR 'php-cgi.exe')
+                  Get-PHPConfiguration | Format-List
+
+                  $old = [Reflection.AssemblyName]::GetAssemblyName("$env:ProgramFiles\PHP Manager 2 for IIS\Web.Management.PHP.dll").Version
+                  "OLD_ASSEMBLY_VERSION=$old" >> $env:GITHUB_ENV
+                  "tag=$tag" >> $env:GITHUB_OUTPUT
+
+            - name: Install MSI
+              run: |
+                  $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
+                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\install.log`""
+                  if ($p.ExitCode -notin 0, 3010) { throw "msiexec /i exited with $($p.ExitCode). See install.log." }
+
+            - name: Check install
+              run: |
+                  foreach ($name in 'Web.Management.PHP', 'Web.Management.PHP.Client') {
+                      if (-not (Test-Path "$env:windir\Microsoft.NET\assembly\GAC_*\$name")) { throw "$name is not in the GAC." }
+                  }
+                  $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
+                  if (-not $admin.SelectSingleNode("//moduleProviders/add[@name='PHP']")) { throw 'The PHP module provider is not in administration.config.' }
+                  Add-PSSnapin PHPManagerSnapin
+                  Get-Command -PSSnapin PHPManagerSnapin | Format-Table -AutoSize
+
+            - name: Check upgrade
+              if: steps.previous.outputs.tag != ''
+              env:
+                  NEW_VERSION: ${{ steps.msi.outputs.version }}
+              run: |
+                  $new = [Reflection.AssemblyName]::GetAssemblyName("$env:ProgramFiles\PHP Manager 2 for IIS\Web.Management.PHP.dll").Version
+                  Write-Host "Assemblies went from $env:OLD_ASSEMBLY_VERSION to $new."
+
+                  $products = @(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+                      Where-Object { $_.DisplayName -like 'PHP Manager 2 for IIS*' })
+                  $products | Format-Table DisplayName, DisplayVersion -AutoSize
+                  if ($products.Count -ne 1) { throw "Expected one PHP Manager in installed programs, found $($products.Count)." }
+                  if (($products[0].DisplayVersion -replace '\.0$', '') -ne $env:NEW_VERSION) { throw "Installed version is $($products[0].DisplayVersion), not $env:NEW_VERSION." }
+
+                  $gac = "$env:windir\Microsoft.NET\assembly\GAC_*\Web.Management.PHP"
+                  if (-not (Test-Path "$gac\v4.0_$($new)__*\*.dll")) { throw "Web.Management.PHP $new is not in the GAC." }
+                  if ("$new" -ne $env:OLD_ASSEMBLY_VERSION -and (Test-Path "$gac\v4.0_$($env:OLD_ASSEMBLY_VERSION)__*\*.dll")) { throw "Web.Management.PHP $env:OLD_ASSEMBLY_VERSION is still in the GAC." }
+
+                  $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
+                  $type = $admin.SelectSingleNode("//moduleProviders/add[@name='PHP']").type
+                  if ($type -notmatch "Version=$([regex]::Escape("$new")),") { throw "The PHP module provider points at another version: $type" }
+
+                  $snapin = Get-PSSnapin -Registered -Name PHPManagerSnapin
+                  if ($snapin.Version -ne $new) { throw "PHPManagerSnapin is registered as $($snapin.Version), not $new." }
+
             - name: Register PHP
               env:
                   PHP_VERSION: ${{ steps.php.outputs.version }}
+                  UPGRADED_FROM: ${{ steps.previous.outputs.tag }}
               run: |
                   Add-PSSnapin PHPManagerSnapin
                   $exe = Join-Path $env:PHP_DIR 'php-cgi.exe'
-                  New-PHPVersion -ScriptProcessor $exe
+                  # After an upgrade, PHP must still be registered from the previous release.
+                  if (-not $env:UPGRADED_FROM) { New-PHPVersion -ScriptProcessor $exe }
                   $config = Get-PHPConfiguration
                   $config | Format-List
                   Get-PHPExtension -Status Enabled | Format-Table -AutoSize
@@ -203,9 +284,10 @@ jobs:
               if: failure()
               uses: actions/upload-artifact@v7
               with:
-                  name: msi-test-logs-php${{ matrix.php }}
+                  name: msi-test-logs-php${{ matrix.php }}${{ matrix.upgrade && '-upgrade' || '' }}
                   if-no-files-found: ignore
                   retention-days: 7
                   path: |
+                      previous.log
                       install.log
                       uninstall.log

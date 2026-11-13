@@ -1,5 +1,5 @@
-// Shared by check-php-versions.mjs and release-notes.mjs: reads the
-// knownPhpVersions rows and php.net's supported-versions data.
+// Shared by check-php-versions.mjs, release-notes.mjs and changelog.mjs: reads
+// the knownPhpVersions rows, diffs them, and reads php.net's supported versions.
 
 export const SOURCE = "Server/Config/PHPConfigHelper.cs";
 export const BRANCHES_URL = "https://www.php.net/releases/branches.php";
@@ -38,4 +38,33 @@ export async function fetchBranches() {
 export function compareBranches(a, b) {
     const [x, y] = [a, b].map((v) => v.split(".").map(Number));
     return x[0] - y[0] || x[1] - y[1];
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "2029-12-31" -> "31 Dec 2029".
+export function formatDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${d} ${MONTHS[m - 1]} ${y}`;
+}
+
+// Branches added, with a changed date, and removed between two sets of rows, newest first.
+export function rowChanges(oldRows, newRows) {
+    const byNewest = (a, b) => compareBranches(b, a);
+    return {
+        added: [...newRows.keys()].filter((b) => !oldRows.has(b)).sort(byNewest),
+        updated: [...newRows.keys()].filter((b) => oldRows.has(b) && oldRows.get(b).date !== newRows.get(b).date).sort(byNewest),
+        removed: [...oldRows.keys()].filter((b) => !newRows.has(b)).sort(byNewest),
+    };
+}
+
+// Markdown bullets for rowChanges(), in the release notes wording.
+export function describeRowChanges({ added, updated, removed }, newRows) {
+    const lines = added.map((b) => `- Added PHP ${b} to the known versions`);
+    if (updated.length > 0) {
+        lines.push("- Updated end-of-support dates to php.net's current schedule:");
+        for (const b of updated) lines.push(`  - PHP ${b}: ${formatDate(newRows.get(b).date)}`);
+    }
+    for (const b of removed) lines.push(`- Removed PHP ${b} from the known versions`);
+    return lines;
 }

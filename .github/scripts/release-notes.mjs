@@ -8,26 +8,14 @@
 // --from defaults to the newest published release (needs gh). --version
 // defaults to AssemblyFileVersion in SharedAssembyInfo.cs. Rows are read from
 // HEAD, so commit row changes first. Needs git and Node 18 or later.
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { SOURCE, compareBranches, fetchBranches, parseRows } from "./php-versions.mjs";
+import { SOURCE, describeRowChanges, fetchBranches, parseRows, rowChanges } from "./php-versions.mjs";
+import { UPSTREAM_TAG, fail, githubRepo, normalizeVersion, run, sourceVersion, upstreamCompareUrl } from "./repo.mjs";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 let problems = 0;
-
-const run = (cmd, args) => execFileSync(cmd, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 const warn = (message) => {
     problems++;
     console.error(`warning: ${message}`);
-};
-const fail = (message) => {
-    console.error(`error: ${message}`);
-    process.exit(1);
-};
-const formatDate = (iso) => {
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${d} ${MONTHS[m - 1]} ${y}`;
 };
 
 const { values } = parseArgs({ options: { from: { type: "string" }, version: { type: "string" } } });
@@ -49,19 +37,8 @@ try {
     fail(`${previous} is not a tag or commit here. Run git fetch --tags, or check --from.`);
 }
 
-// Same rule as the Build MSI workflow: 2.16.0.0 is released as 2.16.0.
-let version = values.version;
-if (!version) {
-    const m = /^\[assembly: AssemblyFileVersion\("([^"]*)"\)\]/m.exec(readFileSync("SharedAssembyInfo.cs", "utf8"));
-    if (!m) fail("AssemblyFileVersion not found in SharedAssembyInfo.cs. Pass --version.");
-    version = m[1];
-}
-version = version.replace(/^v/, "");
-if (version.split(".").length === 4) version = version.replace(/\.0$/, "");
-
-const remote = /github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/.exec(run("git", ["remote", "get-url", "origin"]));
-if (!remote) fail("The origin remote is not a GitHub repository.");
-const repo = remote[1];
+const version = values.version ? normalizeVersion(values.version) : sourceVersion();
+const repo = githubRepo();
 
 let oldRows, newRows;
 try {
@@ -70,14 +47,10 @@ try {
 } catch (e) {
     fail(e.message);
 }
-
-const byNewest = (a, b) => compareBranches(b, a);
-const added = [...newRows.keys()].filter((b) => !oldRows.has(b)).sort(byNewest);
-const updated = [...newRows.keys()].filter((b) => oldRows.has(b) && oldRows.get(b).date !== newRows.get(b).date).sort(byNewest);
-const removed = [...oldRows.keys()].filter((b) => !newRows.has(b)).sort(byNewest);
+const diff = rowChanges(oldRows, newRows);
 
 // Every date the notes mention must match php.net.
-const listedDates = [...added, ...updated];
+const listedDates = [...diff.added, ...diff.updated];
 if (listedDates.length > 0) {
     try {
         const php = new Map((await fetchBranches()).map((b) => [b.branch, b.end]));
@@ -91,14 +64,8 @@ if (listedDates.length > 0) {
     }
 }
 
-const changes = [];
-for (const branch of added) changes.push(`- Added PHP ${branch} to the known versions`);
-if (updated.length > 0) {
-    changes.push("- Updated end-of-support dates to php.net's current schedule:");
-    for (const branch of updated) changes.push(`  - PHP ${branch}: ${formatDate(newRows.get(branch).date)}`);
-}
-for (const branch of removed) changes.push(`- Removed PHP ${branch} from the known versions`);
-if (added.length + updated.length > 0) {
+const changes = describeRowChanges(diff, newRows);
+if (listedDates.length > 0) {
     changes.push("- PHP Manager marks a version as expiring 180 days before that date, and obsolete after it");
 }
 if (changes.length === 0) console.error(`note: No known-version rows changed since ${previous}.`);
@@ -116,7 +83,9 @@ The installers are not code-signed. Check them with \`SHA256SUMS.txt\`:
 To check that an installer was built by this repository's release workflow:
 \`gh attestation verify PHPManagerForIIS-${version}-x64.msi -R ${repo}\`
 
-**Full Changelog**: https://github.com/${repo}/compare/${previous}...v${version}`);
+**Full Changelog**: https://github.com/${repo}/compare/${previous}...v${version}
+
+**All changes since upstream ${UPSTREAM_TAG}**: ${upstreamCompareUrl(repo, `v${version}`)}`);
 
 const commits = run("git", ["log", "--no-merges", "--format=%h %s", `${previous}..HEAD`]);
 console.error(`\nCommits since ${previous}. Add the user-visible ones (installer, UI, how releases are built) to Changes:`);

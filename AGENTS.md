@@ -35,6 +35,8 @@ PHP lifecycle rows and the product version are separate. Rows do not change `Sha
 
 When asked for release notes, draft them in chat for the user to paste into the draft release. GitHub's generated notes hold only the changelog link, because changes land on `master` without pull requests.
 
+`CHANGELOG.md` is generated from the git tags by `npm run changelog`; change `.github/scripts/changelog.mjs` and regenerate rather than editing the file.
+
 1. Run `npm run release-notes`. It finds the previous published release with `gh`, diffs the rows at `HEAD` against it, checks each listed date against php.net, and prints the draft to stdout. If `gh` is unavailable, ask the user for the previous release tag and pass `-- --from <tag>`.
 2. Read stderr. A date warning (exit 1) means a row and php.net disagree: raise it with the user before the notes go out.
 3. Read the commits it lists after the draft, and add a Changes bullet for each user-visible one: installer, UI, and how releases are built.

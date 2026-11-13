@@ -2,7 +2,8 @@
     "scripts": {
         "check:actions": "github-actionlint .github/workflows/*",
         "check:php": "node .github/scripts/check-php-versions.mjs",
-        "release-notes": "node .github/scripts/release-notes.mjs"
+        "release-notes": "node .github/scripts/release-notes.mjs",
+        "changelog": "node .github/scripts/changelog.mjs"
     },
     "devDependencies": {
         "github-actionlint": "^1.7.12"

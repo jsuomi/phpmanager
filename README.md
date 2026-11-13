@@ -359,7 +359,7 @@ Leave the Visual C++ runtime installed unless you know nothing else needs it: ot
 - [ ] Check the draft has `PHPManagerForIIS-<version>-x64.msi`, `PHPManagerForIIS-<version>-x86.msi` and `SHA256SUMS.txt`
     - Download an MSI from the draft and run `gh attestation verify PHPManagerForIIS-<version>-x64.msi -R jsuomi/phpmanager`
 - [ ] Check the [Test MSI workflow](https://github.com/jsuomi/phpmanager/actions/workflows/msi-test.yml) passed for the tag's build. It starts after each successful Build MSI run, installs the x64 MSI, and serves a page with each PHP version that php.net still supports. It also tests an upgrade from the previous published release
-- [ ] Write the release notes: `npm run release-notes` prints a draft with the PHP version changes. Add other user-visible changes from the commits it lists. Claude can do this; [AGENTS.md](AGENTS.md) describes how
+- [ ] Write the release notes: `npm run release-notes` prints a draft with the PHP version changes. Add other user-visible changes from the commits it lists. Claude can do this; [docs/ai/release-notes.md](docs/ai/release-notes.md) describes how
 - [ ] Publish the release
 
 If something is wrong before publishing: discard the draft, delete the tag locally and on GitHub, fix it, then tag again. After publishing, leave the tag alone and release a new version instead.

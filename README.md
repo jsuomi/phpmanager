@@ -28,7 +28,7 @@ This script does steps 1 to 4 below in one go:
 4. downloads PHP into `C:\PHP\<version>`, after checking it against windows.php.net's hash
 5. registers that PHP with IIS
 
-Run it in **Windows PowerShell as administrator**, not PowerShell 7: the PHP Manager cmdlets only load in Windows PowerShell 5.1. Paste the whole block at once; it stops at the first failed step. Set `$PhpBranch` to the PHP version you want. To add another PHP version later, run it again with a different `$PhpBranch`; the other parts are safe to repeat.
+Run it in **Windows PowerShell as administrator**, not PowerShell 7: the PHP Manager cmdlets only load in Windows PowerShell 5.1. Paste the whole block at once; it stops at the first failed step. Set `$PhpBranch` to the PHP version you want. To add another PHP version later, run it again with a different `$PhpBranch`; the other parts are safe to repeat. Open a new window each time: the script loads the PHP Manager cmdlets, and if a newer PHP Manager is installed from a window that has them loaded, Windows Installer closes that window to replace their files.
 
 ```powershell
 & {
@@ -309,7 +309,7 @@ The script covers mappings on the server and at the root of each site. A mapping
 
 ### Uninstall PHP Manager
 
-Uninstall **PHP Manager 2 for IIS** in **Settings > Apps > Installed apps** (or **Programs and Features**), or in Windows PowerShell as administrator:
+Uninstall **PHP Manager 2 for IIS** in **Settings > Apps > Installed apps** (or **Programs and Features**), or in a **new** Windows PowerShell window as administrator. Use a new window if you ran the removal script or other PHP Manager cmdlets: Windows Installer closes any window that has them loaded.
 
 ```powershell
 $app = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -like 'PHP Manager 2 for IIS*'

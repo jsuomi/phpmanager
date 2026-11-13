@@ -309,16 +309,20 @@ jobs:
                   if ($xml.SelectNodes("//system.webServer/fastCgi/application").Count -ne 0) { throw 'A FastCGI application is still registered.' }
                   Write-Host 'Remove-PHPVersion works.'
 
+            # The previous step removed every version. This is a step of its own because a
+            # process that loaded the snap-in holds its DLL open, and the uninstall's Restart
+            # Manager shuts such a process down: the uninstall step must not load it.
+            - name: Register PHP again
+              run: |
+                  Add-PSSnapin PHPManagerSnapin
+                  New-PHPVersion -ScriptProcessor (Join-Path $env:PHP_DIR 'php-cgi.exe')
+
             # The upgrade job uninstalls as the Apps list does, and PHP must stay registered.
             # The other jobs uninstall with REMOVEPHP=1, and PHP must be unregistered.
             - name: Uninstall MSI
               env:
                   REMOVE_PHP: ${{ !matrix.upgrade }}
               run: |
-                  # Register PHP again: the previous step removed every version.
-                  Add-PSSnapin PHPManagerSnapin
-                  New-PHPVersion -ScriptProcessor (Join-Path $env:PHP_DIR 'php-cgi.exe')
-
                   $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
                   $arguments = @('/x', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\uninstall.log`"")
                   if ($env:REMOVE_PHP -eq 'true') { $arguments += 'REMOVEPHP=1' }

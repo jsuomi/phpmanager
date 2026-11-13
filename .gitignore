@@ -35,3 +35,4 @@ T4MVC.cs
 *.vssscc
 *.msi
 node_modules/
+.claude/

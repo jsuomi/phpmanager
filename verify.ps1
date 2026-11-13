@@ -6,7 +6,7 @@ if ($output.Contains("Microsoft.Web.Administration, Version=7.9")) {
 }
 
 if (!(Test-Path("PHPManagerForIIS_x64.msi"))) {
-    Write-Error "x64 installer misisng."
+    Write-Error "x64 installer missing."
     exit 1
 }
 

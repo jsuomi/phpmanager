@@ -1,0 +1,20 @@
+# Monthly, one grouped pull request per ecosystem, to keep the noise low.
+version: 2
+updates:
+    # The uses: pins in .github/workflows.
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: monthly
+      groups:
+          actions:
+              patterns: ["*"]
+
+    # actionlint, used by npm run check:actions.
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: monthly
+      groups:
+          npm:
+              patterns: ["*"]

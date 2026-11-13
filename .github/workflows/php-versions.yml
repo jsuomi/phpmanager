@@ -13,6 +13,7 @@ on:
         paths:
             - "Server/Config/PHPConfigHelper.cs"
             - ".github/scripts/check-php-versions.mjs"
+            - ".github/scripts/php-versions.mjs"
             - ".github/workflows/php-versions.yml"
     workflow_dispatch:
 

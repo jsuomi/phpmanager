@@ -70,6 +70,15 @@ namespace Web.Management.PHP {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0} is the active PHP version. Make another version active before removing it..
+        /// </summary>
+        internal static string CannotRemoveActivePhpError {
+            get {
+                return ResourceManager.GetString("CannotRemoveActivePhpError", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Cannot register PHP because FastCGI module is not enabled in IIS..
         /// </summary>
         internal static string FastCgiNotEnabledError {

@@ -820,6 +820,46 @@ namespace Web.Management.PHP.Config
             return false;
         }
 
+        // True when a handler mapping on this level, or in a location path of
+        // applicationHost.config, still runs the given FastCGI executable.
+        private bool IsFastCgiApplicationInUse(string executable, string arguments)
+        {
+            foreach (var handler in _handlersCollection)
+            {
+                if (IsHandlerFor(handler, executable, arguments))
+                {
+                    return true;
+                }
+            }
+
+            var appHostConfig = _configurationWrapper.GetAppHostConfiguration();
+            foreach (var locationPath in appHostConfig.GetLocationPaths())
+            {
+                if (String.IsNullOrEmpty(locationPath))
+                {
+                    continue;
+                }
+
+                var section = (HandlersSection)appHostConfig.GetSection("system.webServer/handlers", typeof(HandlersSection), locationPath);
+                foreach (var handler in section.Handlers)
+                {
+                    if (handler.IsLocallyStored && IsHandlerFor(handler, executable, arguments))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsHandlerFor(HandlerElement handler, string executable, string arguments)
+        {
+            return String.Equals(handler.Modules, "FastCgiModule", StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(handler.Executable, executable, StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(handler.Arguments ?? String.Empty, arguments ?? String.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool IsFastCgiInstalled()
         {
             var result = false;
@@ -1117,6 +1157,48 @@ namespace Web.Management.PHP.Config
                 MakeHandlerActive(name);
                 _configurationWrapper.CommitChanges();
             }
+        }
+
+        /// <summary>
+        /// Unregisters a PHP version at the current configuration level by removing its handler
+        /// mapping. At server level its FastCGI application goes too, unless a site's own handler
+        /// mappings in applicationHost.config still use it. PHP files are not touched.
+        /// </summary>
+        public void UnregisterPHPHandler(string name)
+        {
+            EnsurePHPIsRegistered();
+
+            var handler = _handlersCollection.GetHandlerByNameAndPath(name, "*.php");
+            if (handler == null)
+            {
+                return;
+            }
+
+            // The active version goes last, so PHP keeps working while other versions are registered.
+            if (String.Equals(handler.Name, _currentPhpHandler.Name, StringComparison.OrdinalIgnoreCase) &&
+                GetAllPHPVersions().Count > 1)
+            {
+                throw new InvalidOperationException(String.Format(Resources.CannotRemoveActivePhpError, handler.Name));
+            }
+
+            var executable = handler.Executable;
+            var arguments = handler.Arguments;
+
+            // Below server level, work on a local copy of the handlers, as SelectPHPHandler does.
+            CopyInheritedHandlers();
+            _handlersCollection.Remove(_handlersCollection[name]);
+
+            if (_configurationWrapper.IsServerConfigurationPath() && !IsFastCgiApplicationInUse(executable, arguments))
+            {
+                var fastCgiApplication = _fastCgiApplicationCollection.GetApplication(executable, arguments);
+                if (fastCgiApplication != null)
+                {
+                    _fastCgiApplicationCollection.Remove(fastCgiApplication);
+                }
+            }
+
+            _configurationWrapper.CommitChanges();
+            Initialize();
         }
 
         private static string TryToGetIniFilePath(string version)

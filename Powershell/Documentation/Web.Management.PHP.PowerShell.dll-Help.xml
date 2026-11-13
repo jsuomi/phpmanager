@@ -1590,6 +1590,137 @@ C:\PS&gt;			</maml:introduction>
     </maml:relatedLinks>
   </command:command>
   <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
+    <command:details>
+      <command:name>Remove-PHPVersion</command:name>
+      <maml:description>
+        <maml:para>Unregisters a PHP version from IIS.</maml:para>
+      </maml:description>
+      <command:verb>Remove</command:verb>
+      <command:noun>PHPVersion</command:noun>
+      <dev:version />
+    </command:details>
+    <maml:description>
+      <maml:para>The Remove-PHPVersion cmdlet removes the handler mapping of a PHP version on a server level, or on the site specified by "SiteName" parameter and the application/folder specified by "VirtualPath" parameter. On a server level it also removes the FastCGI application of that version, unless a site still has its own handler mapping for it. The cmdlet does not delete any PHP files. The active PHP version can only be removed when it is the last one; make another version active first with Set-PHPVersion.</maml:para>
+    </maml:description>
+    <command:syntax>
+      <command:syntaxItem>
+        <maml:name>Remove-PHPVersion</maml:name>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByPropertyName)" position="1">
+          <maml:name>HandlerName</maml:name>
+          <maml:description>
+            <maml:para>Specifies the name of the handler mapping for the PHP version to remove, such as php-8.4.27. Get-PHPVersion lists the names.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+            <maml:name>String</maml:name>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+          <maml:name>SiteName</maml:name>
+          <maml:description>
+            <maml:para>Specifies a name of existing web site. The cmdlet removes the PHP version from that web site only. If this parameter is not specified then the PHP version is removed on a server level.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+            <maml:name>String</maml:name>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+          <maml:name>VirtualPath</maml:name>
+          <maml:description>
+            <maml:para>Specifies a path within a web site. The cmdlet removes the PHP version from that configuration path within a web site.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+            <maml:name>String</maml:name>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+          <maml:name>Force</maml:name>
+          <maml:description>
+            <maml:para>Removes the PHP version without asking for confirmation.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+            <maml:name>SwitchParameter</maml:name>
+        </command:parameter>
+      </command:syntaxItem>
+    </command:syntax>
+    <command:parameters>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="true (ByPropertyName)" position="1">
+        <maml:name>HandlerName</maml:name>
+        <maml:description>
+          <maml:para>Specifies the name of the handler mapping for the PHP version to remove, such as php-8.4.27. Get-PHPVersion lists the names.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>
+        </dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+        <maml:name>SiteName</maml:name>
+        <maml:description>
+          <maml:para>Specifies a name of existing web site. The cmdlet removes the PHP version from that web site only. If this parameter is not specified then the PHP version is removed on a server level.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>
+        </dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+        <maml:name>VirtualPath</maml:name>
+        <maml:description>
+          <maml:para>Specifies a path within a web site. The cmdlet removes the PHP version from that configuration path within a web site.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">String</command:parameterValue>
+        <dev:type>
+          <maml:name>String</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>
+        </dev:defaultValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named">
+        <maml:name>Force</maml:name>
+        <maml:description>
+          <maml:para>Removes the PHP version without asking for confirmation.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="false">SwitchParameter</command:parameterValue>
+        <dev:type>
+          <maml:name>SwitchParameter</maml:name>
+          <maml:uri />
+        </dev:type>
+        <dev:defaultValue>
+        </dev:defaultValue>
+      </command:parameter>
+    </command:parameters>
+    <command:examples>
+      <command:example>
+        <maml:title>
+--------------  Example 1 --------------			</maml:title>
+        <maml:introduction>
+          <maml:para>C:\PS&gt;</maml:para>
+        </maml:introduction>
+        <dev:code>Remove-PHPVersion -HandlerName php-8.4.27</dev:code>
+        <dev:remarks>
+          <maml:para>This command asks for confirmation, then unregisters the PHP version that has an IIS handler name "php-8.4.27" on a server level.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>
+--------------  Example 2 --------------			</maml:title>
+        <maml:introduction>
+          <maml:para>C:\PS&gt;</maml:para>
+        </maml:introduction>
+        <dev:code>Get-PHPVersion | Where-Object { -not $_.Active } | Remove-PHPVersion -Force</dev:code>
+        <dev:remarks>
+          <maml:para>This command unregisters every PHP version except the active one, without asking for confirmation.</maml:para>
+        </dev:remarks>
+      </command:example>
+    </command:examples>
+    <maml:relatedLinks>
+    </maml:relatedLinks>
+  </command:command>
+  <command:command xmlns:maml="http://schemas.microsoft.com/maml/2004/10" xmlns:command="http://schemas.microsoft.com/maml/dev/command/2004/10" xmlns:dev="http://schemas.microsoft.com/maml/dev/2004/10">
     <!--Generated by Help Cmdlet Editor-->
     <command:details>
       <command:name>Set-PHPExtension</command:name>

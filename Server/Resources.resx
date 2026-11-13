@@ -141,4 +141,7 @@
   <data name="PHPManagerFriendlyName" xml:space="preserve">
     <value>PHP Manager for IIS</value>
   </data>
+  <data name="CannotRemoveActivePhpError" xml:space="preserve">
+    <value>{0} is the active PHP version. Make another version active before removing it.</value>
+  </data>
 </root>

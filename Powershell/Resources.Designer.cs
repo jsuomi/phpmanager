@@ -115,6 +115,15 @@ namespace Web.Management.PHP.Powershell {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The PHP version &quot;{0}&quot; ({1}) will be unregistered from IIS. Its files are not deleted. Are you sure you want to continue?.
+        /// </summary>
+        internal static string RemoveVersionWarningMessage {
+            get {
+                return ResourceManager.GetString("RemoveVersionWarningMessage", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Setting with name &quot;{0}&quot; already exists. Use Set-PHPSetting cmdlet to change its value or Remove-PHPSetting to remove it..
         /// </summary>
         internal static string SettingAlreadyExistsError {

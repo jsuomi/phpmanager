@@ -267,6 +267,48 @@ jobs:
                   $missing = $expected | Where-Object { -not $data.extensions.$_ }
                   if ($missing) { throw "Recommended extensions not loaded: $($missing -join ', ')" }
 
+            - name: Remove PHP versions
+              env:
+                  PHP_VERSION: ${{ steps.php.outputs.version }}
+              run: |
+                  Add-PSSnapin PHPManagerSnapin
+                  $config = "$env:windir\System32\inetsrv\config\applicationHost.config"
+                  function Get-AppHost { [xml](Get-Content $config -Raw) }
+
+                  # A second registration, from a copy of the same PHP. Registering makes it active.
+                  $copy = 'C:\php-copy'
+                  Copy-Item $env:PHP_DIR $copy -Recurse
+                  New-PHPVersion -ScriptProcessor "$copy\php-cgi.exe"
+                  $versions = @(Get-PHPVersion)
+                  $versions | Format-Table -AutoSize
+                  if ($versions.Count -ne 2) { throw "Expected two registered PHP versions, found $($versions.Count)." }
+                  $active = $versions | Where-Object Active
+                  $other = $versions | Where-Object { -not $_.Active }
+
+                  # The active version can't go while another one is registered.
+                  $refused = $false
+                  try { Remove-PHPVersion -HandlerName $active.HandlerName -Force -ErrorAction Stop } catch { $refused = $true; Write-Host "Refused as expected: $($_.Exception.Message)" }
+                  if (-not $refused) { throw 'Remove-PHPVersion removed the active version while another was registered.' }
+
+                  Remove-PHPVersion -HandlerName $other.HandlerName -Force
+                  $left = @(Get-PHPVersion)
+                  if ($left.Count -ne 1 -or $left[0].HandlerName -ne $active.HandlerName) { throw "Expected only $($active.HandlerName) left, found $($left.HandlerName -join ', ')." }
+                  $xml = Get-AppHost
+                  if ($xml.SelectSingleNode("/configuration/system.webServer/handlers/add[@name='$($other.HandlerName)']")) { throw "Handler $($other.HandlerName) is still in applicationHost.config." }
+                  if ($xml.SelectSingleNode("//system.webServer/fastCgi/application[@fullPath='$($other.ScriptProcessor)']")) { throw "FastCGI application $($other.ScriptProcessor) is still in applicationHost.config." }
+                  if (-not (Test-Path $other.ScriptProcessor)) { throw 'Remove-PHPVersion deleted PHP files.' }
+
+                  # PHP still runs, now from the copy.
+                  $data = (Invoke-WebRequest http://localhost/smoke.php -UseBasicParsing).Content | ConvertFrom-Json
+                  if ($data.version -ne $env:PHP_VERSION -or $data.ini -ne "$copy\php.ini") { throw "Unexpected PHP after removal: $($data.version), $($data.ini)" }
+
+                  # The last version can go.
+                  Remove-PHPVersion -HandlerName $active.HandlerName -Force
+                  $xml = Get-AppHost
+                  if ($xml.SelectNodes("/configuration/system.webServer/handlers/add[@path='*.php']").Count -ne 0) { throw 'A *.php handler mapping is still registered.' }
+                  if ($xml.SelectNodes("//system.webServer/fastCgi/application").Count -ne 0) { throw 'A FastCGI application is still registered.' }
+                  Write-Host 'Remove-PHPVersion works.'
+
             - name: Uninstall MSI
               run: |
                   $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName

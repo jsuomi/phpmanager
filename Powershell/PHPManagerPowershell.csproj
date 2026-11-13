@@ -72,6 +72,7 @@
     <Compile Include="PHPVersionItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RemovePHPSettingCmdlet.cs" />
+    <Compile Include="RemovePHPVersionCmdlet.cs" />
     <Compile Include="Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

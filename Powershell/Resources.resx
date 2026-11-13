@@ -148,6 +148,9 @@ Is PowerShell console launched in elevated mode (Run As Administrator)?</value>
   <data name="DeleteSettingWarningMessage" xml:space="preserve">
     <value>The setting "{0}" and its value "{1}" will be removed from php.ini file. Are you sure you want to continue?</value>
   </data>
+  <data name="RemoveVersionWarningMessage" xml:space="preserve">
+    <value>The PHP version "{0}" ({1}) will be unregistered from IIS. Its files are not deleted. Are you sure you want to continue?</value>
+  </data>
   <data name="SettingAlreadyExistsError" xml:space="preserve">
     <value>Setting with name "{0}" already exists. Use Set-PHPSetting cmdlet to change its value or Remove-PHPSetting to remove it.</value>
   </data>

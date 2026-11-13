@@ -189,6 +189,7 @@ Add-PSSnapin PHPManagerSnapin
 New-PHPVersion -ScriptProcessor C:\PHP\8.5\php-cgi.exe   # register
 Get-PHPVersion                                           # list registered versions and handler names
 Set-PHPVersion -HandlerName php-8.5.12                   # make one active
+Remove-PHPVersion -HandlerName php-8.4.27                # unregister one (2.17.0 and later)
 Get-PHPConfiguration                                     # active version, php.ini path, extensions
 
 Get-PHPExtension -Status Disabled                        # list extensions
@@ -202,7 +203,16 @@ Add `-SiteName "Default Web Site"` to work on one site instead of the whole serv
 
 ## Removal and uninstallation
 
-Uninstalling PHP Manager doesn't remove PHP from IIS: sites keep running PHP. PHP Manager also has no command to unregister a PHP version, so that's done in IIS Manager or with `appcmd`.
+Uninstalling PHP Manager doesn't remove PHP from IIS: sites keep running PHP.
+
+From PHP Manager 2.17.0, `Remove-PHPVersion` unregisters a version: it removes the handler mapping and, at server level, the FastCGI application. It refuses to remove the active version while others are registered, and it doesn't delete PHP files. Add `-SiteName` to remove a site's own copy, and `-Force` to skip the confirmation:
+
+```powershell
+Add-PSSnapin PHPManagerSnapin
+Remove-PHPVersion -HandlerName php-8.4.27
+```
+
+The IIS Manager pages have no remove option yet. The steps and script below work with every version of PHP Manager, and also clean up all sites at once and delete the PHP folders.
 
 ### Remove PHP versions
 

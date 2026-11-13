@@ -108,7 +108,7 @@ namespace Web.Management.PHP.Setup
             //
             // RemoveVersionDialog
             //
-            ClientSize = new System.Drawing.Size(364, 160);
+            ClientSize = new System.Drawing.Size(364, 176);
             Controls.Add(_noteLabel);
             Controls.Add(_versionComboBox);
             Controls.Add(_selectVersionLabel);
@@ -205,6 +205,11 @@ namespace Web.Management.PHP.Setup
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+
+            // The dialog font is wider than the designer's, so wrap the note at the
+            // combo box's laid-out width and let it grow in height instead.
+            _noteLabel.MaximumSize = new System.Drawing.Size(_versionComboBox.Right - _noteLabel.Left, 0);
+            _noteLabel.AutoSize = true;
 
             StartAsyncTask(OnGetVersionsDoWork, OnGetVersionsDoWorkCompleted);
         }

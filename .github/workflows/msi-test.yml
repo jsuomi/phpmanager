@@ -294,7 +294,7 @@ jobs:
                   $left = @(Get-PHPVersion)
                   if ($left.Count -ne 1 -or $left[0].HandlerName -ne $active.HandlerName) { throw "Expected only $($active.HandlerName) left, found $($left.HandlerName -join ', ')." }
                   $xml = Get-AppHost
-                  if ($xml.SelectSingleNode("/configuration/system.webServer/handlers/add[@name='$($other.HandlerName)']")) { throw "Handler $($other.HandlerName) is still in applicationHost.config." }
+                  if ($xml.SelectSingleNode("//system.webServer/handlers/add[@name='$($other.HandlerName)']")) { throw "Handler $($other.HandlerName) is still in applicationHost.config." }
                   if ($xml.SelectSingleNode("//system.webServer/fastCgi/application[@fullPath='$($other.ScriptProcessor)']")) { throw "FastCGI application $($other.ScriptProcessor) is still in applicationHost.config." }
                   if (-not (Test-Path $other.ScriptProcessor)) { throw 'Remove-PHPVersion deleted PHP files.' }
 
@@ -305,7 +305,7 @@ jobs:
                   # The last version can go.
                   Remove-PHPVersion -HandlerName $active.HandlerName -Force
                   $xml = Get-AppHost
-                  if ($xml.SelectNodes("/configuration/system.webServer/handlers/add[@path='*.php']").Count -ne 0) { throw 'A *.php handler mapping is still registered.' }
+                  if ($xml.SelectNodes("//system.webServer/handlers/add[@path='*.php']").Count -ne 0) { throw 'A *.php handler mapping is still registered.' }
                   if ($xml.SelectNodes("//system.webServer/fastCgi/application").Count -ne 0) { throw 'A FastCGI application is still registered.' }
                   Write-Host 'Remove-PHPVersion works.'
 
@@ -316,6 +316,13 @@ jobs:
               run: |
                   Add-PSSnapin PHPManagerSnapin
                   New-PHPVersion -ScriptProcessor (Join-Path $env:PHP_DIR 'php-cgi.exe')
+
+                  # Proves the uninstall step's checks can see a registration. Server-level
+                  # handlers live in <location path=""> in applicationHost.config.
+                  $appHost = [xml](Get-Content "$env:windir\System32\inetsrv\config\applicationHost.config" -Raw)
+                  $handlers = $appHost.SelectNodes("//system.webServer/handlers/add[@path='*.php']").Count
+                  $fastCgi = $appHost.SelectNodes("//system.webServer/fastCgi/application").Count
+                  if ($handlers -ne 1 -or $fastCgi -ne 1) { throw "Expected one PHP handler mapping and one FastCGI application, found $handlers and $fastCgi." }
 
             # The upgrade job uninstalls as the Apps list does, and PHP must stay registered.
             # The other jobs uninstall with REMOVEPHP=1, and PHP must be unregistered.
@@ -330,7 +337,7 @@ jobs:
                   if ($p.ExitCode -notin 0, 3010) { throw "msiexec /x exited with $($p.ExitCode). See uninstall.log." }
 
                   $appHost = [xml](Get-Content "$env:windir\System32\inetsrv\config\applicationHost.config" -Raw)
-                  $handlers = $appHost.SelectNodes("/configuration/system.webServer/handlers/add[@path='*.php']").Count
+                  $handlers = $appHost.SelectNodes("//system.webServer/handlers/add[@path='*.php']").Count
                   $fastCgi = $appHost.SelectNodes("//system.webServer/fastCgi/application").Count
                   if ($env:REMOVE_PHP -eq 'true') {
                       if ($handlers -ne 0 -or $fastCgi -ne 0) { throw "REMOVEPHP=1 left $handlers PHP handler mappings and $fastCgi FastCGI applications." }

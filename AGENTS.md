@@ -23,7 +23,7 @@ UI strings live in `Client/Resources.resx`, with satellites in `Client/Languages
 
 ## PHP releases
 
-Any `php-cgi.exe` can be registered. A release is known only as a row in `knownPhpVersions` inside `PHPConfigHelper.ValidateLifecycle`. A missing `major.minor` is reported obsolete. The date is the end of active support from [php.net](https://www.php.net/supported-versions.php): past that date is obsolete, and inside 180 days is expiring. The optional third argument is the VC++ runtime to check (`msvcp{major}0.dll`, compared on the file minor). Copy it from the newest row that uses the same CRT.
+Any `php-cgi.exe` can be registered. A release is known only as a row in `knownPhpVersions` inside `PHPConfigHelper.ValidateLifecycle`. A missing `major.minor` is reported obsolete. The date is the end of security support from [php.net](https://www.php.net/supported-versions.php): past that date is obsolete, and inside 180 days is expiring. The optional third argument is the VC++ runtime to check (`msvcp{major}0.dll`, compared on the file minor). Copy it from the newest row that uses the same CRT.
 
 Recommended `php.ini` extensions already branch at 7.0 and 8.0 in `MakeRecommendedPHPIniChanges`. Later 8.x releases inherit the 8.0 set (`php_gd.dll`, and no `php_xmlrpc.dll` or `php_gd2.dll`).
 

@@ -109,11 +109,20 @@
                     <Component Id="Web.Management.PHP.Client.dll" Guid="{319C1A86-58E7-45EA-9408-EFB366F2A2F4}">
                         <File Id="Web.Management.PHP.Client.dll" Name="Web.Management.PHP.Client.dll" KeyPath="yes" Vital="no" Assembly=".net" AssemblyApplication="Web.Management.PHP.Client.dll" DiskId="1" Source="$(var.SourceDir)\Web.Management.PHP.Client.dll" />
                     </Component>
-                    <Component Id="Web.Management.PHP.Setup.dll" Guid="{CAE7B77C-5A31-4C01-B997-EDEFD5387205}">
-                        <File Id="Web.Management.PHP.Setup.dll" Name="Web.Management.PHP.Setup.dll" KeyPath="yes" Vital="no" Assembly=".net" AssemblyApplication="Web.Management.PHP.Setup.dll" DiskId="1" Source="$(var.SourceDir)\Web.Management.PHP.Setup.dll" />
-                        <File Id='ConfigFile' Name='ConfigFile.xml' DiskId='1' Vital='yes' Source='ConfigFile.xml' />
-                        <RemoveFile Id="LogFile" On="uninstall" Name="Web.Management.PHP.Setup.InstallState" />
-                    </Component>
+                    <!--
+                        The setup assembly lives in its own folder. Releases up to 2.15.1 kept it
+                        in INSTALLDIR, and their uninstall step loads it from there while an
+                        upgrade removes them. The new install step runs in the same custom action
+                        server, and loading from that same path would reuse the old assembly,
+                        which registers the module provider with the old version.
+                    -->
+                    <Directory Id="SetupHelperDir" Name="Setup">
+                        <Component Id="Web.Management.PHP.Setup.dll" Guid="{B86C3884-EA70-422D-84F4-BFD62F9AADBF}">
+                            <File Id="Web.Management.PHP.Setup.dll" Name="Web.Management.PHP.Setup.dll" KeyPath="yes" Vital="no" Assembly=".net" AssemblyApplication="Web.Management.PHP.Setup.dll" DiskId="1" Source="$(var.SourceDir)\Web.Management.PHP.Setup.dll" />
+                            <File Id='ConfigFile' Name='ConfigFile.xml' DiskId='1' Vital='yes' Source='ConfigFile.xml' />
+                            <RemoveFile Id="LogFile" On="uninstall" Name="Web.Management.PHP.Setup.InstallState" />
+                        </Component>
+                    </Directory>
                     <Component Id="Web.Management.PHP.dll" Guid="{3D24E10F-5B3F-4796-99CE-3DA5D0E947DA}">
                         <File Id="Web.Management.PHP.dll" Name="Web.Management.PHP.dll" KeyPath="yes" Vital="no" Assembly=".net" AssemblyApplication="Web.Management.PHP.dll" DiskId="1" Source="$(var.SourceDir)\Web.Management.PHP.dll" />
                     </Component>
@@ -302,8 +311,14 @@
             <RemoveExistingProducts Before="InstallInitialize"/>
             <Custom Action='InstallPHPSetupSetProp' After='StartServices'>$Web.Management.PHP.Setup.dll&gt;2</Custom>
             <Custom Action='InstallPHPSetup' After='InstallPHPSetupSetProp'>$Web.Management.PHP.Setup.dll&gt;2</Custom>
-            <Custom Action='UnInstallPHPSetupSetProp' After='MsiUnpublishAssemblies'>$Web.Management.PHP.Setup.dll=2</Custom>
-            <Custom Action='UnInstallPHPSetup' After='UnInstallPHPSetupSetProp'>$Web.Management.PHP.Setup.dll=2</Custom>
+            <!--
+                Skipped while a newer version upgrades this one: that version's install step
+                removes and re-adds the module provider itself. Running it would load this
+                version's setup assembly into the custom action server, where the newer
+                install step could get it back instead of its own.
+            -->
+            <Custom Action='UnInstallPHPSetupSetProp' After='MsiUnpublishAssemblies'>$Web.Management.PHP.Setup.dll=2 AND NOT UPGRADINGPRODUCTCODE</Custom>
+            <Custom Action='UnInstallPHPSetup' After='UnInstallPHPSetupSetProp'>$Web.Management.PHP.Setup.dll=2 AND NOT UPGRADINGPRODUCTCODE</Custom>
             <Custom Action="WixCloseApplications" After="InstallInitialize" />
 
         </InstallExecuteSequence>

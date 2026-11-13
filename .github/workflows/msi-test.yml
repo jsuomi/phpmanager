@@ -279,6 +279,11 @@ jobs:
                   $admin = [xml](Get-Content "$env:windir\System32\inetsrv\config\administration.config" -Raw)
                   if ($admin.SelectSingleNode("//moduleProviders/add[@name='PHP']")) { throw 'The PHP module provider is still in administration.config.' }
                   if (Get-PSSnapin -Registered -Name PHPManagerSnapin -ErrorAction SilentlyContinue) { throw 'PHPManagerSnapin is still registered.' }
+                  $dir = "$env:ProgramFiles\PHP Manager 2 for IIS"
+                  if (Test-Path $dir) {
+                      Get-ChildItem $dir -Recurse | Select-Object -ExpandProperty FullName
+                      throw "$dir is still there."
+                  }
 
             - name: Upload logs
               if: failure()

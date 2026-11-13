@@ -28,7 +28,7 @@
     - The workflow builds it and creates a draft release
     - The run fails if the tag and `AssemblyFileVersion` differ
 - [ ] Check the draft has `PHPManagerForIIS-<version>-x64.msi`, `PHPManagerForIIS-<version>-x86.msi` and `SHA256SUMS.txt`
-- [ ] Check the [Test MSI workflow](https://github.com/jsuomi/phpmanager/actions/workflows/msi-test.yml) passed for the tag's build. It starts after each successful Build MSI run, installs the x64 MSI, and serves a page with each PHP version published on windows.php.net
+- [ ] Check the [Test MSI workflow](https://github.com/jsuomi/phpmanager/actions/workflows/msi-test.yml) passed for the tag's build. It starts after each successful Build MSI run, installs the x64 MSI, and serves a page with each PHP version that php.net still supports
 - [ ] Write the release notes. Claude can draft them; [AGENTS.md](AGENTS.md) describes how
 - [ ] Publish the release
 

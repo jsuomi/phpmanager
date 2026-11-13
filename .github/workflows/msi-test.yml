@@ -1,8 +1,9 @@
 name: Test MSI
 
 # Installs the x64 MSI from a Build MSI run on a clean Windows runner. For each
-# PHP branch that windows.php.net publishes, it registers that PHP with
-# New-PHPVersion, serves a page through IIS, then uninstalls the MSI.
+# PHP branch that php.net still supports and windows.php.net has a build of,
+# it registers that PHP with New-PHPVersion, serves a page through IIS, then
+# uninstalls the MSI.
 # The x86 MSI is not tested: it refuses to install on 64-bit Windows.
 run-name: Test MSI from ${{ github.event.workflow_run.display_title || format('run {0}', inputs.run_id) }}
 
@@ -42,13 +43,22 @@ jobs:
                   esac
                   echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-            - name: List PHP branches
+            # Supported means php.net's security support has not ended.
+            - name: List supported PHP branches
               id: php
               run: |
-                  branches=$(curl -fsSL --retry 3 https://downloads.php.net/~windows/releases/releases.json \
+                  supported=$(curl -fsSL --retry 3 https://www.php.net/releases/branches.php \
+                      | jq -c --arg today "$(date -u +%F)" \
+                          '[.[] | select((.security_support_end // "")[0:10] >= $today) | .branch]')
+                  windows=$(curl -fsSL --retry 3 https://downloads.php.net/~windows/releases/releases.json \
                       | jq -c '[keys[] | select(test("^[0-9]+\\.[0-9]+$"))]')
+                  branches=$(jq -nc --argjson s "$supported" --argjson w "$windows" '[$s[] | select(IN($w[]))] | sort')
+                  missing=$(jq -nc --argjson s "$supported" --argjson w "$windows" '[$s[] | select(IN($w[]) | not)]')
+                  if [ "$missing" != "[]" ]; then
+                      echo "::warning::Supported PHP with no Windows build to test: $missing"
+                  fi
                   if [ "$branches" = "[]" ] || [ -z "$branches" ]; then
-                      echo "No PHP branches found in releases.json."
+                      echo "No supported PHP branch has a Windows build."
                       exit 1
                   fi
                   echo "Testing PHP $branches"

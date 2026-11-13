@@ -200,6 +200,130 @@ Add `-SiteName "Default Web Site"` to work on one site instead of the whole serv
 
 ---
 
+## Removal and uninstallation
+
+Uninstalling PHP Manager doesn't remove PHP from IIS: sites keep running PHP. PHP Manager also has no command to unregister a PHP version, so that's done in IIS Manager or with `appcmd`.
+
+### Remove PHP versions
+
+By hand, for each version:
+
+1. If it's the active version, first switch to a version you keep with **Change PHP version** (step 7).
+2. In IIS Manager, select the server node, open **Handler Mappings**, and remove the mapping named after the version, such as `php-8.4.27`. `Get-PHPVersion` lists the names.
+3. Open **FastCGI Settings** and remove the application whose **Full Path** is that version's `php-cgi.exe`.
+4. For each site that shows **Handler mapping: Local** in PHP Manager, select the site, open **Handler Mappings**, and remove the mapping there too. **Revert to Parent** in the **Actions** pane also works, but it discards all of the site's own handler changes.
+5. Delete the PHP folder, such as `C:\PHP\8.4`. If its files are in use, run `iisreset` first.
+
+#### With PowerShell
+
+This script does the steps above for one or more PHP versions, or all of them. Run it in **Windows PowerShell as administrator**, before uninstalling PHP Manager: it uses PHP Manager's cmdlets to find the registered versions.
+
+Set `$Remove` to what to remove:
+- `@('8.4')` removes every registered 8.4 release
+- `@('8.4.27', '8.3')` removes one exact release and every 8.3 release
+- `@('all')` removes every PHP version
+
+The script lists the matching versions and asks before changing anything. If the active version is among them, it first makes the newest remaining version active. It removes the handler mappings from the server and from every site that has its own copy, then the FastCGI applications. With `$DeleteFolders`, it also deletes each version's folder, unless a remaining version lives in the same folder.
+
+```powershell
+& {
+$Remove        = @('8.4')    # versions such as '8.4' or '8.4.27', or 'all'
+$DeleteFolders = $true       # also delete each removed version's PHP folder
+
+if ($PSVersionTable.PSEdition -ne 'Desktop') { throw 'Run this in Windows PowerShell 5.1, not PowerShell 7.' }
+if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole('Administrators')) { throw 'Run this as administrator.' }
+$ErrorActionPreference = 'Stop'
+if (-not (Get-PSSnapin PHPManagerSnapin -ErrorAction SilentlyContinue)) { Add-PSSnapin PHPManagerSnapin }
+
+# Pick the registered versions to remove
+$all  = @(Get-PHPVersion)
+$gone = @($all | Where-Object { $v = $_.Version; $Remove -contains 'all' -or @($Remove | Where-Object { $v -eq $_ -or $v -like "$_.*" }).Count -gt 0 })
+$kept = @($all | Where-Object { $gone -notcontains $_ })
+if ($gone.Count -eq 0) { throw "No registered PHP version matches $($Remove -join ', '). Registered: $($all.Version -join ', ')" }
+$gone | Format-Table HandlerName, Version, ScriptProcessor, Active -AutoSize
+if ((Read-Host 'Remove these PHP versions? (y/N)') -ne 'y') { Write-Host 'Nothing removed.'; return }
+
+# Keep PHP running: switch to the newest remaining version first
+if (@($gone | Where-Object Active).Count -gt 0 -and $kept.Count -gt 0) {
+    $next = $kept | Sort-Object { [version]$_.Version } -Descending | Select-Object -First 1
+    Set-PHPVersion -HandlerName $next.HandlerName
+    Write-Host "Active PHP is now $($next.Version)."
+}
+
+# Remove the handler mappings and FastCGI applications
+Add-Type -Path "$env:windir\System32\inetsrv\Microsoft.Web.Administration.dll"
+$sm      = New-Object Microsoft.Web.Administration.ServerManager
+$apphost = $sm.GetApplicationHostConfiguration()
+$exes    = @($gone.ScriptProcessor)
+function Remove-PhpHandlers($section, $where) {
+    $handlers = $section.GetCollection()
+    foreach ($h in @($handlers | Where-Object { $_.IsLocallyStored -and $exes -contains $_.GetAttributeValue('scriptProcessor') })) {
+        Write-Host "Removing handler $($h.GetAttributeValue('name')) from $where"
+        $handlers.Remove($h)
+    }
+}
+Remove-PhpHandlers $apphost.GetSection('system.webServer/handlers') 'the server'
+foreach ($site in $sm.Sites) {
+    Remove-PhpHandlers $apphost.GetSection('system.webServer/handlers', $site.Name) "site $($site.Name)"
+    try { Remove-PhpHandlers $sm.GetWebConfiguration($site.Name).GetSection('system.webServer/handlers') "site $($site.Name) web.config" }
+    catch { Write-Warning "Could not read the web.config of site $($site.Name): $($_.Exception.Message)" }
+}
+$fastCgi = $apphost.GetSection('system.webServer/fastCgi').GetCollection()
+foreach ($app in @($fastCgi | Where-Object { $exes -contains $_.GetAttributeValue('fullPath') })) {
+    Write-Host "Removing FastCGI application $($app.GetAttributeValue('fullPath'))"
+    $fastCgi.Remove($app)
+}
+$sm.CommitChanges()
+
+# Delete the PHP folders
+if ($DeleteFolders) {
+    iisreset /restart | Out-Null   # stops php-cgi.exe processes that hold files open
+    foreach ($dir in @($gone | ForEach-Object { Split-Path $_.ScriptProcessor } | Sort-Object -Unique)) {
+        if ($dir.Length -le 3 -or @($kept | Where-Object { $_.ScriptProcessor -like "$dir\*" }).Count -gt 0) {
+            Write-Warning "Kept ${dir}: it is a drive root or holds a remaining PHP version."
+            continue
+        }
+        Remove-Item -Recurse -Force $dir
+        Write-Host "Deleted $dir"
+    }
+}
+
+if ($kept.Count -gt 0) { Get-PHPVersion | Format-Table -AutoSize } else { Write-Host 'No PHP versions are registered now.' }
+}
+```
+
+The script covers mappings on the server and at the root of each site. A mapping copied into an application or folder inside a site still has to be removed in **Handler Mappings** there.
+
+### Uninstall PHP Manager
+
+Uninstall **PHP Manager 2 for IIS** in **Settings > Apps > Installed apps** (or **Programs and Features**), or in Windows PowerShell as administrator:
+
+```powershell
+$app = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object DisplayName -like 'PHP Manager 2 for IIS*'
+Start-Process msiexec.exe -Wait -ArgumentList '/x', $app.PSChildName, '/passive', '/norestart'
+```
+
+This removes PHP Manager from IIS Manager, the PowerShell cmdlets, and its files. It keeps:
+
+- the PHP versions registered in IIS, which keep serving PHP
+- the PHP folders and their `php.ini`
+- the PHP error logs, such as `C:\Windows\Temp\php-8.5.12_errors.log`
+- `index.php` as a default document
+- the Visual C++ runtime
+
+### Remove PHP completely
+
+1. Remove every PHP version, as above. With the script, set `$Remove = @('all')`.
+2. Uninstall PHP Manager.
+3. Optional cleanup:
+   - In **Default Document**, remove `index.php`.
+   - Delete the PHP error logs from `C:\Windows\Temp`.
+   - Remove the CGI feature if nothing else uses FastCGI: `Uninstall-WindowsFeature Web-CGI` on Windows Server, or `Disable-WindowsOptionalFeature -Online -FeatureName IIS-CGI` on Windows 10 or 11.
+
+Leave the Visual C++ runtime installed unless you know nothing else needs it: other applications share it.
+
+---
+
 ## Release checklist
 
 - [ ] Check [php.net](https://www.php.net/supported-versions.php) for the supported PHP versions and their end of **security** support. `npm run check:php` compares the rows with php.net, and the [PHP versions workflow](https://github.com/jsuomi/phpmanager/actions/workflows/php-versions.yml) runs it on GitHub

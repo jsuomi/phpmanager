@@ -7,6 +7,7 @@
 // </copyright>
 //----------------------------------------------------------------------- 
 
+using System;
 using System.ComponentModel;
 using System.Configuration.Install;
 using System.Reflection;
@@ -36,6 +37,20 @@ namespace Web.Management.PHP.Setup
             base.Uninstall(savedState);
 
             InstallUtil.RemoveUIModuleProvider("PHP");
+
+            // msiexec /x <product> REMOVEPHP=1 also unregisters every PHP version from IIS.
+            // A failed cleanup must not fail the uninstall, so it is only logged.
+            if (Context.Parameters["removephp"] == "1")
+            {
+                try
+                {
+                    InstallUtil.RemovePHPRegistrations();
+                }
+                catch (Exception ex)
+                {
+                    Context.LogMessage("Could not unregister PHP from IIS: " + ex.Message);
+                }
+            }
         }
     }
 }

@@ -700,4 +700,19 @@
   <data name="WarningProcessBlocked" xml:space="preserve">
     <value>PHP Manager cannot open links due to IIS Manager security changes. The link below is now in Windows clipboard. Please paste it to the browser address bar, navigate to the web page, and read the contents.</value>
   </data>
+  <data name="ErrorCannotRemoveActiveVersion" xml:space="preserve">
+    <value>The active PHP version cannot be removed while other versions are registered. Change the PHP version first.</value>
+  </data>
+  <data name="PHPSetupItemRemoveVersionTask" xml:space="preserve">
+    <value>Remove PHP version</value>
+  </data>
+  <data name="RemoveVersionDialogNote" xml:space="preserve">
+    <value>This removes the handler mapping and, on the server level, the FastCGI application. PHP files are not deleted. The active version can only be removed when it is the last one.</value>
+  </data>
+  <data name="RemoveVersionDialogSelectVersion" xml:space="preserve">
+    <value>Select the PHP version to remove:</value>
+  </data>
+  <data name="RemoveVersionDialogTitle" xml:space="preserve">
+    <value>Remove PHP version</value>
+  </data>
 </root>

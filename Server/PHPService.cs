@@ -442,6 +442,44 @@ namespace Web.Management.PHP
         }
 
         [ModuleServiceMethod(PassThrough = Passthrough)]
+        public void UnregisterPHPVersion(string name)
+        {
+            EnsureServerOrSiteConnection();
+
+            var isActive = false;
+            try
+            {
+                var mgmtUnitWrapper = new ManagementUnitWrapper(ManagementUnit);
+                var configHelper = new PHPConfigHelper(mgmtUnitWrapper);
+
+                // The active version goes last, so PHP keeps working while other versions are registered.
+                isActive = String.Equals(configHelper.GetPHPConfigInfo().HandlerName, name, StringComparison.OrdinalIgnoreCase) &&
+                    configHelper.GetAllPHPVersions().Count > 1;
+                if (!isActive)
+                {
+                    configHelper.UnregisterPHPHandler(name);
+                }
+            }
+            catch (FileLoadException)
+            {
+                RaiseException("ErrorSomeHandlersLocked");
+            }
+            catch (FileNotFoundException)
+            {
+                RaiseException("ErrorPHPIniNotFound");
+            }
+            catch (InvalidOperationException)
+            {
+                RaiseException("ErrorPHPIsNotRegistered");
+            }
+
+            if (isActive)
+            {
+                RaiseException("ErrorCannotRemoveActiveVersion");
+            }
+        }
+
+        [ModuleServiceMethod(PassThrough = Passthrough)]
         public void UpdateExtensions(object extensionsData)
         {
             EnsureServerConnection();

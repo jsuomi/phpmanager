@@ -270,7 +270,7 @@
         <CustomAction Id='InstallPHPSetupSetProp' Property='InstallPHPSetup' Value='/installtype=notransaction /action=install /LogFile= "[#Web.Management.PHP.Setup.dll]" "[#ConfigFile]"'/>
         <CustomAction Id='InstallPHPSetup' BinaryKey='InstallUtil' DllEntry='ManagedInstall' Execute='deferred' Impersonate='no' />
 
-        <CustomAction Id='UnInstallPHPSetupSetProp' Property='UnInstallPHPSetup' Value='/installtype=notransaction /action=uninstall /LogFile= "[#Web.Management.PHP.Setup.dll]" "[#ConfigFile]"'/>
+        <CustomAction Id='UnInstallPHPSetupSetProp' Property='UnInstallPHPSetup' Value='/installtype=notransaction /action=uninstall /removephp=[REMOVEPHP] /LogFile= "[#Web.Management.PHP.Setup.dll]" "[#ConfigFile]"'/>
         <CustomAction Id='UnInstallPHPSetup' BinaryKey='InstallUtil' DllEntry='ManagedInstall' Execute='deferred' Impersonate='no' />
 
         <util:CloseApplication Id="CloseIisManager"

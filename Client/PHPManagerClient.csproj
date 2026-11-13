@@ -101,6 +101,9 @@
     <Compile Include="Setup\ChangeVersionDialog.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Setup\RemoveVersionDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Globals.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="Setup\PHPInfoPage.cs">

@@ -782,6 +782,15 @@ namespace Web.Management.PHP {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The active PHP version cannot be removed while other versions are registered. Change the PHP version first..
+        /// </summary>
+        internal static string ErrorCannotRemoveActiveVersion {
+            get {
+                return ResourceManager.GetString("ErrorCannotRemoveActiveVersion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to This extension already exists in PHP extentions directory. Use &quot;Enable or disable an extension&quot; task to enable this extension..
         /// </summary>
         internal static string ErrorExtensionFileAlreadyExists {
@@ -1382,6 +1391,15 @@ namespace Web.Management.PHP {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Remove PHP version.
+        /// </summary>
+        internal static string PHPSetupItemRemoveVersionTask {
+            get {
+                return ResourceManager.GetString("PHPSetupItemRemoveVersionTask", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to PHP Setup.
         /// </summary>
         internal static string PHPSetupItemTitle {
@@ -1504,6 +1522,33 @@ namespace Web.Management.PHP {
         internal static string RegisterPHPDialogSelectPath {
             get {
                 return ResourceManager.GetString("RegisterPHPDialogSelectPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This removes the handler mapping and, on the server level, the FastCGI application. PHP files are not deleted. The active version can only be removed when it is the last one..
+        /// </summary>
+        internal static string RemoveVersionDialogNote {
+            get {
+                return ResourceManager.GetString("RemoveVersionDialogNote", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select the PHP version to remove:.
+        /// </summary>
+        internal static string RemoveVersionDialogSelectVersion {
+            get {
+                return ResourceManager.GetString("RemoveVersionDialogSelectVersion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Remove PHP version.
+        /// </summary>
+        internal static string RemoveVersionDialogTitle {
+            get {
+                return ResourceManager.GetString("RemoveVersionDialogTitle", resourceCulture);
             }
         }
         

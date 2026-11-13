@@ -309,11 +309,33 @@ jobs:
                   if ($xml.SelectNodes("//system.webServer/fastCgi/application").Count -ne 0) { throw 'A FastCGI application is still registered.' }
                   Write-Host 'Remove-PHPVersion works.'
 
+            # The upgrade job uninstalls as the Apps list does, and PHP must stay registered.
+            # The other jobs uninstall with REMOVEPHP=1, and PHP must be unregistered.
             - name: Uninstall MSI
+              env:
+                  REMOVE_PHP: ${{ !matrix.upgrade }}
               run: |
+                  # Register PHP again: the previous step removed every version.
+                  Add-PSSnapin PHPManagerSnapin
+                  New-PHPVersion -ScriptProcessor (Join-Path $env:PHP_DIR 'php-cgi.exe')
+
                   $msi = (Get-ChildItem msi -Filter '*-x64.msi' | Select-Object -First 1).FullName
-                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/x', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\uninstall.log`""
+                  $arguments = @('/x', "`"$msi`"", '/qn', '/norestart', '/l*v', "`"$PWD\uninstall.log`"")
+                  if ($env:REMOVE_PHP -eq 'true') { $arguments += 'REMOVEPHP=1' }
+                  $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList $arguments
                   if ($p.ExitCode -notin 0, 3010) { throw "msiexec /x exited with $($p.ExitCode). See uninstall.log." }
+
+                  $appHost = [xml](Get-Content "$env:windir\System32\inetsrv\config\applicationHost.config" -Raw)
+                  $handlers = $appHost.SelectNodes("/configuration/system.webServer/handlers/add[@path='*.php']").Count
+                  $fastCgi = $appHost.SelectNodes("//system.webServer/fastCgi/application").Count
+                  if ($env:REMOVE_PHP -eq 'true') {
+                      if ($handlers -ne 0 -or $fastCgi -ne 0) { throw "REMOVEPHP=1 left $handlers PHP handler mappings and $fastCgi FastCGI applications." }
+                      if (-not (Test-Path (Join-Path $env:PHP_DIR 'php-cgi.exe'))) { throw 'REMOVEPHP=1 deleted PHP files.' }
+                      Write-Host 'REMOVEPHP=1 unregistered PHP and kept its files.'
+                  } else {
+                      if ($handlers -ne 1 -or $fastCgi -ne 1) { throw "A plain uninstall changed the PHP registration: $handlers handler mappings and $fastCgi FastCGI applications." }
+                      Write-Host 'A plain uninstall kept the PHP registration.'
+                  }
 
                   foreach ($name in 'Web.Management.PHP', 'Web.Management.PHP.Client') {
                       if (Test-Path "$env:windir\Microsoft.NET\assembly\GAC_*\$name\*\*.dll") { throw "$name is still in the GAC." }

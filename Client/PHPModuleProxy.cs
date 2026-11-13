@@ -122,6 +122,11 @@ namespace Web.Management.PHP
             Invoke("SelectPHPVersion", name);
         }
 
+        internal void UnregisterPHPVersion(string name)
+        {
+            Invoke("UnregisterPHPVersion", name);
+        }
+
         internal void UpdateExtensions(RemoteObjectCollection<PHPIniExtension> extensions)
         {
             Invoke("UpdateExtensions", extensions.GetData());

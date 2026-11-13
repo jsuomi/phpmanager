@@ -26,7 +26,8 @@ namespace Web.Management.PHP
 
         private const int IndexRegisterPhpTask = 0;
         private const int IndexChangeVersionTask = 1;
-        private const int IndexCheckPhpInfoTask = 2;
+        private const int IndexRemoveVersionTask = 2;
+        private const int IndexCheckPhpInfoTask = 3;
         private const int IndexErrorReportingTask = 0;
         private const int IndexLimitsTask = 1;
         private const int IndexAllSettingsTask = 2;
@@ -161,6 +162,7 @@ namespace Web.Management.PHP
             _phpSetupItem.AddTask(OnPHPSetupItemClick,
                                     Resources.PHPSetupItemRegisterPHPTask,
                                     Resources.PHPSetupItemChangeVersionTask,
+                                    Resources.PHPSetupItemRemoveVersionTask,
                                     Resources.PHPSetupItemCheckPHPInfoTask);
 
             Controls.Add(_phpSetupItem);
@@ -376,6 +378,10 @@ namespace Web.Management.PHP
             else if (index == IndexChangeVersionTask)
             {
                 SelectPHPVersion();
+            }
+            else if (index == IndexRemoveVersionTask)
+            {
+                RemovePHPVersion();
             }
             else if (index == IndexCheckPhpInfoTask)
             {
@@ -596,6 +602,17 @@ namespace Web.Management.PHP
             }
         }
 
+        private void RemovePHPVersion()
+        {
+            using (var dlg = new Setup.RemoveVersionDialog(Module))
+            {
+                if (ShowDialog(dlg) == DialogResult.OK)
+                {
+                    Refresh();
+                }
+            }
+        }
+
         private void SelectPHPVersion()
         {
             using (var dlg = new Setup.ChangeVersionDialog(Module))
@@ -725,6 +742,7 @@ namespace Web.Management.PHP
             }
 
             _phpSetupItem.SetTaskState(IndexChangeVersionTask, isPhpSetup);
+            _phpSetupItem.SetTaskState(IndexRemoveVersionTask, isPhpSetup);
             _phpSetupItem.SetTaskState(IndexCheckPhpInfoTask, isPhpSetup);
         }
 

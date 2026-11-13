@@ -203,16 +203,19 @@ Add `-SiteName "Default Web Site"` to work on one site instead of the whole serv
 
 ## Removal and uninstallation
 
-Uninstalling PHP Manager doesn't remove PHP from IIS: sites keep running PHP.
+Uninstalling PHP Manager doesn't remove PHP from IIS: sites keep running PHP, unless you uninstall with `REMOVEPHP=1` (below).
 
-From PHP Manager 2.17.0, `Remove-PHPVersion` unregisters a version: it removes the handler mapping and, at server level, the FastCGI application. It refuses to remove the active version while others are registered, and it doesn't delete PHP files. Add `-SiteName` to remove a site's own copy, and `-Force` to skip the confirmation:
+From PHP Manager 2.17.0, a PHP version can be unregistered in two ways. Both remove its handler mapping and, at server level, its FastCGI application. Neither removes the active version while others are registered, and neither deletes PHP files.
 
-```powershell
-Add-PSSnapin PHPManagerSnapin
-Remove-PHPVersion -HandlerName php-8.4.27
-```
+- **IIS Manager**: open **PHP Manager**, choose **Remove PHP version** under **PHP Setup**, and pick the version. The list leaves out the active version unless it's the only one. On a site, this removes the version from that site only, which gives the site its own handler mappings.
+- **PowerShell**: `Remove-PHPVersion`. Add `-SiteName` to remove it from one site only, and `-Force` to skip the confirmation:
 
-The IIS Manager pages have no remove option yet. The steps and script below work with every version of PHP Manager, and also clean up all sites at once and delete the PHP folders.
+  ```powershell
+  Add-PSSnapin PHPManagerSnapin
+  Remove-PHPVersion -HandlerName php-8.4.27
+  ```
+
+The steps and script below work with every version of PHP Manager, and also clean up all sites at once and delete the PHP folders.
 
 ### Remove PHP versions
 
@@ -315,15 +318,21 @@ Start-Process msiexec.exe -Wait -ArgumentList '/x', $app.PSChildName, '/passive'
 
 This removes PHP Manager from IIS Manager, the PowerShell cmdlets, and its files. It keeps:
 
-- the PHP versions registered in IIS, which keep serving PHP
+- the PHP versions registered in IIS, which keep serving PHP, unless you add `REMOVEPHP=1`
 - the PHP folders and their `php.ini`
 - the PHP error logs, such as `C:\Windows\Temp\php-8.5.12_errors.log`
 - `index.php` as a default document
 - the Visual C++ runtime
 
+From PHP Manager 2.17.0, uninstalling with `REMOVEPHP=1` also unregisters every PHP version: it removes all FastCGI handler mappings for `*.php` from the server, from each site's own settings in `applicationHost.config` and from each site's root `web.config`, then their FastCGI applications. PHP files stay. Uninstalling from **Installed apps** never does this, because it can't pass the flag. In the script above, change the last line to:
+
+```powershell
+Start-Process msiexec.exe -Wait -ArgumentList '/x', $app.PSChildName, '/passive', '/norestart', 'REMOVEPHP=1'
+```
+
 ### Remove PHP completely
 
-1. Remove every PHP version, as above. With the script, set `$Remove = @('all')`.
+1. Remove every PHP version, as above. With the script, set `$Remove = @('all')`. From 2.17.0, uninstalling with `REMOVEPHP=1` in step 2 does this for you, apart from deleting the PHP folders.
 2. Uninstall PHP Manager.
 3. Optional cleanup:
    - In **Default Document**, remove `index.php`.

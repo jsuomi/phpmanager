@@ -64,7 +64,7 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
@@ -128,7 +128,7 @@ jobs:
 
             # Downloads as PHPManagerForIIS-<version>.zip.
             - name: Upload MSI files
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: PHPManagerForIIS-${{ steps.version.outputs.version }}
                   if-no-files-found: error

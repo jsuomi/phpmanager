@@ -29,10 +29,10 @@ Recommended `php.ini` extensions already branch at 7.0 and 8.0 in `MakeRecommend
 
 The ini file used at registration is `php-cgi-fcgi.ini`, then `php.ini`. If neither exists, `php.ini-production` or `php.ini-recommended` is copied to `php.ini`.
 
-PHP lifecycle rows and the product version are separate. Rows do not change `SharedAssembyInfo.cs`. Bump `AssemblyVersion` and `AssemblyFileVersion` there when shipping a build of this tool. When cutting a release, follow the checklist in `README.md`. The Build MSI workflow can stamp `SharedAssembyInfo.cs` from its `tag` input for that run; the stamp stays in the run.
+PHP lifecycle rows and the product version are separate. Rows do not change `SharedAssembyInfo.cs`. Bump `AssemblyVersion` and `AssemblyFileVersion` there when shipping a build of this tool. When cutting a release, follow the checklist in `README.md`. The Build MSI workflow can stamp `SharedAssembyInfo.cs` from its `tag` input for that run; the stamp stays in the run. Pushing a `v*` tag runs it as a release: the tag must match `AssemblyFileVersion`, and the run creates a draft GitHub release with `PHPManagerForIIS-<version>-x86.msi`, `PHPManagerForIIS-<version>-x64.msi` and `SHA256SUMS.txt`.
 
 ## Build
 
-Compilation needs Windows, Visual Studio, and the IIS Management Tools. `Microsoft.Web.Administration` and `Microsoft.Web.Management` resolve from `%WINDIR%\System32\inetsrv`. Post-build events GAC-install the outputs, so a local build wants an elevated prompt. Verification is that MSI build. The repository has no test project.
+Compilation needs Windows, Visual Studio, and the IIS Management Tools. `Microsoft.Web.Administration` and `Microsoft.Web.Management` resolve from `%WINDIR%\System32\inetsrv`. Post-build events GAC-install the outputs, so a local build wants an elevated prompt. Verification is that MSI build. The repository has no test project. `npm run check:actions` lints `.github/workflows/` with actionlint, and the Actionlint workflow runs it in CI.
 
 The workflow runs `dist.release.bat`: compile via `build.net35.bat` and `release.ps1`, then WiX x86 and x64 MSIs (`PHPManagerForIIS_x86.msi`, `PHPManagerForIIS_x64.msi`). `build.net35.bat` is the historical name; the projects target `v4.6.2`. `sign.ps1` skips signing when its certificate is absent. A macOS checkout cannot compile this tree.

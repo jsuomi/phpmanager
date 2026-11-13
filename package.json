@@ -1,0 +1,8 @@
+{
+    "scripts": {
+        "check:actions": "github-actionlint .github/workflows/*"
+    },
+    "devDependencies": {
+        "github-actionlint": "^1.7.12"
+    }
+}

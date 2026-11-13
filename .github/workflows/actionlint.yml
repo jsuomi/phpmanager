@@ -1,0 +1,31 @@
+name: Actionlint
+
+on:
+    push:
+        paths:
+            - ".github/workflows/**"
+            - "package.json"
+            - "package-lock.json"
+    pull_request:
+        paths:
+            - ".github/workflows/**"
+            - "package.json"
+            - "package-lock.json"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    actionlint:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            # Same actionlint version as locally, from package-lock.json.
+            - name: Install
+              run: npm ci
+
+            - name: Check workflow files
+              run: npm run check:actions

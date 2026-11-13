@@ -34,3 +34,4 @@ T4MVC.cs
 *.vspscc
 *.vssscc
 *.msi
+node_modules/

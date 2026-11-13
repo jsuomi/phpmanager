@@ -12,13 +12,20 @@
 
 ---
 
-## Notes to self
+## Release checklist
 
-- Check [php.net](https://www.php.net/supported-versions.php) for the supported PHP versions and dates
-- Update the versions and dates in [PHPConfigHelper.cs](Server/Config/PHPConfigHelper.cs)
-- Update the version in [SharedAssembyInfo.cs](SharedAssembyInfo.cs), then commit and push
-- Tag that commit with the same version and push the tag, e.g. `v2.14.0` for `2.14.0.0`
-    - The [workflow](https://github.com/jsuomi/phpmanager/actions/workflows/dotnet-desktop.yml) builds it and creates a draft release with `PHPManagerForIIS-<version>-x86.msi`, `PHPManagerForIIS-<version>-x64.msi` and `SHA256SUMS.txt`
+- [ ] Check [php.net](https://www.php.net/supported-versions.php) for the supported PHP versions and their end of **security** support
+- [ ] Update the rows in [PHPConfigHelper.cs](Server/Config/PHPConfigHelper.cs): add new versions and fix changed dates
+- [ ] Bump `AssemblyVersion` and `AssemblyFileVersion` in [SharedAssembyInfo.cs](SharedAssembyInfo.cs), e.g. `2.16.0.0`
+- [ ] If a workflow changed, run `npm run check:actions`
+- [ ] Optional test build: run the [Build MSI workflow](https://github.com/jsuomi/phpmanager/actions/workflows/dotnet-desktop.yml) by hand with the new version as `tag`
+    - Download the artifact `PHPManagerForIIS-<version>.zip`, unzip it and run `shasum -a 256 -c SHA256SUMS.txt`
+- [ ] Commit and push
+- [ ] Tag that commit with the same version and push the tag: `git tag v2.16.0`, then `git push origin v2.16.0`
+    - The workflow builds it and creates a draft release
     - The run fails if the tag and `AssemblyFileVersion` differ
-- Review the draft release, edit the notes and publish it
-- For a test build without a release, run the workflow by hand and download the artifact `PHPManagerForIIS-<version>.zip`
+- [ ] Check the draft has `PHPManagerForIIS-<version>-x64.msi`, `PHPManagerForIIS-<version>-x86.msi` and `SHA256SUMS.txt`
+- [ ] Write the release notes. Claude can draft them; [AGENTS.md](AGENTS.md) describes how
+- [ ] Publish the release
+
+If something is wrong before publishing: discard the draft, delete the tag locally and on GitHub, fix it, then tag again. After publishing, leave the tag alone and release a new version instead.

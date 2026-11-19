@@ -46,8 +46,8 @@ if ((Get-FileHash "$dl\$($msi.name)").Hash -ne $expected) { throw "$($msi.name) 
 $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', "`"$dl\$($msi.name)`"", '/passive', '/norestart'
 if ($p.ExitCode -notin 0, 3010) { throw "PHP Manager setup failed with exit code $($p.ExitCode)" }
 
-# 3. Visual C++ runtime, x64. On ARM64 Windows it installs ARM64 parts too, which is expected.
-Invoke-WebRequest https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dl\vc_redist.x64.exe"
+# 3. Visual C++ runtime, x64. The current v14 package covers the VS16, VS17 and VS18 builds. On ARM64 Windows it installs ARM64 parts too, which is expected.
+Invoke-WebRequest https://aka.ms/vc14/vc_redist.x64.exe -OutFile "$dl\vc_redist.x64.exe"
 $p = Start-Process "$dl\vc_redist.x64.exe" -Wait -PassThru -ArgumentList '/install', '/passive', '/norestart'
 if ($p.ExitCode -notin 0, 1638, 3010) { throw "Visual C++ runtime setup failed with exit code $($p.ExitCode)" }   # 1638: a newer one is installed
 
@@ -104,7 +104,7 @@ To upgrade, run the newer MSI. It replaces the installed version and keeps your 
 
 1. Get PHP from [windows.php.net/download](https://windows.php.net/download/). Pick the **Non Thread Safe** (NTS) x64 zip: IIS runs PHP through FastCGI, which uses the NTS build.
 2. Extract it to its own folder, such as `C:\PHP\8.5`. Use one folder per PHP version.
-3. Install the Visual C++ runtime the build needs. The download page names it, such as VS17 for PHP 8.4 and later. The [latest Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (x64) covers VS16 and VS17 builds. On ARM64 Windows, the x64 installer also installs ARM64 parts; that's expected.
+3. Install the Visual C++ runtime the build needs. The download page names it: VS16 for PHP 8.0–8.3, VS17 for 8.4 and 8.5, and VS18 for 8.6. The [latest Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) (x64) covers those builds. On ARM64 Windows, the x64 installer also installs ARM64 parts; that's expected.
 
 ### 4. Register PHP with IIS
 

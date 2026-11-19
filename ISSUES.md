@@ -79,8 +79,8 @@ Two checks could not run during the review: `npm run check:php` (php.net was unr
 
 - **Where:** [php-versions.yml:6-10](.github/workflows/php-versions.yml#L6)
 - **Evidence:** the weekly `schedule` is commented out. The check runs only by hand or on pushes that touch `PHPConfigHelper.cs`.
-- **Impact:** PHP usually releases a new branch in late November. Until it has a row, PHP Manager reports it obsolete. Row 8.2 ends 2026-12-31, so it already shows as expiring.
-- **Fix:** run `npm run check:php` after the next PHP release and add the row. Consider a scheduled run with a keep-alive, or a reminder.
+- **Impact:** PHP usually releases a new branch in late November. Until it has a row, PHP Manager reports it obsolete. PHP 8.6's row is in (security support ends 2030-12-31, VS18). Row 8.2 ends 2026-12-31, so it already shows as expiring.
+- **Fix:** run `npm run check:php` after each PHP release and add the row. Consider a scheduled run with a keep-alive, or a reminder.
 - **Status:** Confirmed (schedule off); the release timing is an expectation.
 
 ### 6. Build MSI runs every job step with write access
@@ -197,10 +197,11 @@ Two checks could not run during the review: `npm run check:php` (php.net was unr
 
 Show which PHP branches PHP Manager knows, so users can see at a glance what's current. Any `php-cgi.exe` can be registered; the rows decide only whether PHP Manager shows it as supported, expiring (within 180 days of the end of security support) or obsolete. So the table is really "what PHP Manager warns about", and it is worth saying that in one line above it.
 
-Draft from the rows at `d332c90`, as of 2026-11-13:
+Draft from the current rows. PHP 8.6 was added on 2026-11-19; the other rows are the draft from `d332c90` on 2026-11-13:
 
 | PHP | Security support ends | Visual C++ runtime | Status |
 | --- | --- | --- | --- |
+| 8.6 | 2030-12-31 | VS18 | Supported |
 | 8.5 | 2029-12-31 | VS17 | Supported |
 | 8.4 | 2028-12-31 | VS17 | Supported |
 | 8.3 | 2027-12-31 | VS16 | Supported |

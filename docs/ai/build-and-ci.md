@@ -14,4 +14,4 @@ Test MSI (`msi-test.yml`): run `msiexec` only from a PowerShell process that has
 
 ## Releases
 
-A release of PHP Manager is cut by following the checklist in [`docs/RELEASING.md`](../RELEASING.md): version bump in `SharedAssembyInfo.cs`, changelog, `v*` tag, then the checks on the draft. Row changes alone never bump the version.
+A release of PHP Manager is cut by following the checklist in [`docs/RELEASING.md`](../RELEASING.md): version bump in `SharedAssembyInfo.cs`, changelog, `v*` tag, then the checks on the draft. Row changes alone never bump the version. When asked for the release steps or for help with a release, name every command and action in that checklist, each one marked done or still to do.

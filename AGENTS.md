@@ -32,5 +32,6 @@ Compiling needs Windows, so from a macOS checkout check with `npm run check:php`
 
 ## More
 
+- A release: when asked for the release steps or for help with a release, name every command and action in [docs/RELEASING.md](docs/RELEASING.md), each one marked done or still to do.
 - Drafting release notes: [docs/ai/release-notes.md](docs/ai/release-notes.md)
 - Building on Windows, editing `.github/workflows/` or the build scripts, or cutting a release: [docs/ai/build-and-ci.md](docs/ai/build-and-ci.md)

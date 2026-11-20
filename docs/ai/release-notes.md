@@ -6,4 +6,4 @@ Draft them in chat for the user to paste into the draft GitHub release. GitHub's
 2. Read stderr. A date warning (exit 1) means a row and php.net disagree: raise it with the user before the notes go out.
 3. Read the commits it lists after the draft, and add a Changes bullet for each user-visible one: installer, UI, and how releases are built.
 
-The notes are done when the script exits 0 (or the user has settled each warning) and every user-visible commit has a bullet.
+The notes are done when the script exits 0 (or the user has settled each warning) and every user-visible commit has a bullet. The same reply names every command and action in [docs/RELEASING.md](../RELEASING.md), each one marked done or still to do.
